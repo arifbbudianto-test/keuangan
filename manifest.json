@@ -2,7 +2,8 @@
   "name": "Keuangan Keluarga",
   "short_name": "Keuangan",
   "description": "Aplikasi pencatat keuangan keluarga",
-  "start_url": "./keuangan-keluarga.html",
+  "start_url": "/keuangan/",
+  "scope": "/keuangan/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F7F5F0",
@@ -10,16 +11,37 @@
   "lang": "id",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%232A7A5A'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%232A7A5A'/%3E%3Ctext x='256' y='350' font-size='280' text-anchor='middle'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Keuangan Keluarga"
     }
   ],
   "categories": ["finance", "productivity"],
