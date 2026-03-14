@@ -8,3 +8,11 @@
     ]
   }
 }]
+```
+5. Klik **Commit changes**
+
+---
+
+Setelah upload, verifikasi dengan buka URL ini di browser:
+```
+https://arifbbudianto-test.github.io/keuangan/.well-known/assetlinks.json
