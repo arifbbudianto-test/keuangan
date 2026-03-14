@@ -439,6 +439,41 @@ textarea{resize:none;height:64px}
   </div>
 </div>
 
+<!-- BUDGET DETAIL MODAL -->
+<div class="modal-overlay" id="budget-detail-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-icon" id="bdet-icon" style="background:#FAEAE7">📌</div>
+      <div style="flex:1">
+        <div class="modal-title" id="bdet-title">—</div>
+        <div class="modal-sub">Detail pengeluaran periode ini</div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <!-- Summary bar -->
+      <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:11px;color:var(--text3)">Budget</span>
+          <span style="font-family:var(--mono);font-size:12px;font-weight:600" id="bdet-budget">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:11px;color:var(--text3)">Terpakai</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--red);font-weight:600" id="bdet-spent">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:11px;color:var(--text3)">Persentase</span>
+          <span style="font-family:var(--mono);font-size:12px;font-weight:600" id="bdet-pct">—</span>
+        </div>
+        <div style="text-align:right;font-size:12px;font-weight:700" id="bdet-sisa">—</div>
+      </div>
+      <!-- List transaksi -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:8px">Riwayat Transaksi</div>
+      <div id="bdet-list" style="max-height:300px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
 <!-- DETAIL MODAL -->
 <div class="modal-overlay" id="tx-modal" onclick="closeModal(event)">
   <div class="modal-sheet">
@@ -724,27 +759,89 @@ function renderAktual(){
     el.innerHTML='<div class="empty">Belum ada snapshot budget</div>';
     return;
   }
-  const savedDate=new Date(budgetSnapshot.savedAt).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const savedDate=new Date(budgetSnapshot.savedAt).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
   info.style.display='block';
-  info.textContent='Snapshot budget: '+savedDate;
+  info.textContent='Budget periode: '+budgetSnapshot.period+' · disimpan '+savedDate;
   const expenses=getFiltered(periodOffset).filter(t=>t.type==='pengeluaran');
   const snap=budgetSnapshot;
   const has=snap.cats.filter(c=>snap.budgets[c.name]>0);
   if(!has.length){el.innerHTML='<div class="empty">Tidak ada budget di snapshot</div>';return;}
-  el.innerHTML=has.map(c=>{
-    const spent=expenses.filter(t=>t.cat===c.name).reduce((s,t)=>s+t.amount,0);
-    const b=snap.budgets[c.name]||0;const pct=b>0?Math.min(100,Math.round(spent/b*100)):0;
+
+  // Total keseluruhan
+  const grandTotal=has.reduce((s,c)=>s+(snap.budgets[c.name]||0),0);
+  const grandSpent=expenses.reduce((s,t)=>s+t.amount,0);
+  const grandSisa=grandTotal-grandSpent;
+  const grandPct=grandTotal>0?Math.min(100,Math.round(grandSpent/grandTotal*100)):0;
+
+  el.innerHTML=`
+    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:12px;font-weight:600;color:var(--text2)">Total Pengeluaran vs Budget</span>
+        <span style="font-family:var(--mono);font-size:12px;font-weight:600">${grandPct}%</span>
+      </div>
+      <div style="height:7px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:5px">
+        <div style="height:100%;border-radius:4px;width:${grandPct}%;background:${grandPct>=100?'var(--red)':grandPct>=80?'#8A5A10':'var(--accent)'};transition:width 0.4s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px">
+        <span style="color:var(--text3)">${fmt(grandSpent)} dari ${fmt(grandTotal)}</span>
+        <span style="font-weight:600;color:${grandSisa>=0?'var(--green)':'var(--red)'}">${grandSisa>=0?'🟢 Sisa '+fmt(grandSisa):'🔴 Over '+fmt(Math.abs(grandSisa))}</span>
+      </div>
+    </div>
+  `+has.map(c=>{
+    const catTxs=expenses.filter(t=>t.cat===c.name);
+    const spent=catTxs.reduce((s,t)=>s+t.amount,0);
+    const b=snap.budgets[c.name]||0;
+    const pct=b>0?Math.min(100,Math.round(spent/b*100)):0;
     const col=pct>=100?'#B83A2A':pct>=80?'#8A5A10':'#2A7A5A';
     const sisa=b-spent;
-    return`<div class="progress-wrap">
+    return`<div class="progress-wrap aktual-item" onclick="showBudgetDetail('${c.name}')" style="cursor:pointer;padding:10px;border-radius:var(--radius-sm);transition:background 0.1s;margin-bottom:2px" onmousedown="this.style.background='var(--surface2)'" onmouseup="this.style.background=''" ontouchstart="this.style.background='var(--surface2)'" ontouchend="this.style.background=''">
       <div class="progress-header">
-        <div class="progress-left">${c.icon} ${c.name}</div>
+        <div class="progress-left">${c.icon} <strong>${c.name}</strong> <span style="font-size:10px;color:var(--text3)">(${catTxs.length} transaksi)</span></div>
         <div class="progress-right">${fmt(spent)} / ${fmt(b)} · ${pct}%</div>
       </div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div>
-      <div style="font-size:10px;color:${sisa>=0?'var(--green)':'var(--red)'};text-align:right;margin-top:2px">${sisa>=0?'Sisa: '+fmt(sisa):'Lebih: '+fmt(Math.abs(sisa))}</div>
+      <div class="progress-bar" style="margin:5px 0"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:10px;color:var(--text3)">Tap untuk lihat detail →</span>
+        <span style="font-size:10px;font-weight:600;color:${sisa>=0?'var(--green)':'var(--red)'}">${sisa>=0?'Sisa: '+fmt(sisa):'Over: '+fmt(Math.abs(sisa))}</span>
+      </div>
     </div>`;
   }).join('');
+}
+
+// Modal detail budget per kategori
+function showBudgetDetail(catName){
+  const snap=budgetSnapshot;
+  if(!snap) return;
+  const cat=snap.cats.find(c=>c.name===catName);
+  const expenses=getFiltered(periodOffset).filter(t=>t.type==='pengeluaran'&&t.cat===catName);
+  const b=snap.budgets[catName]||0;
+  const spent=expenses.reduce((s,t)=>s+t.amount,0);
+  const sisa=b-spent;
+  const pct=b>0?Math.min(100,Math.round(spent/b*100)):0;
+
+  document.getElementById('bdet-icon').textContent=cat?cat.icon:'📌';
+  document.getElementById('bdet-title').textContent=catName;
+  document.getElementById('bdet-budget').textContent=fmt(b);
+  document.getElementById('bdet-spent').textContent=fmt(spent);
+  document.getElementById('bdet-pct').textContent=pct+'%';
+  const sisaEl=document.getElementById('bdet-sisa');
+  sisaEl.textContent=(sisa>=0?'Sisa: ':'Over: ')+fmt(Math.abs(sisa));
+  sisaEl.style.color=sisa>=0?'var(--green)':'var(--red)';
+
+  const listEl=document.getElementById('bdet-list');
+  if(!expenses.length){
+    listEl.innerHTML='<div class="empty" style="padding:16px 0">Belum ada transaksi kategori ini</div>';
+  } else {
+    listEl.innerHTML=expenses.map(t=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${t.note||catName}</div>
+          <div style="font-size:11px;color:var(--text3)">${t.member} · ${new Date(t.date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--red)">−${fmt(t.amount)}</div>
+      </div>`).join('');
+  }
+  document.getElementById('budget-detail-modal').classList.add('open');
 }
 
 function fmt(n){return 'Rp '+Math.abs(Math.round(n)).toLocaleString('id-ID');}
