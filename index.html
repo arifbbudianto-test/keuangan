@@ -131,7 +131,7 @@ textarea{resize:none;height:64px}
 .riwayat-title{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.2px}
 .btn-add-tx{display:flex;align-items:center;gap:5px;padding:8px 14px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:white;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .btn-add-tx:active{opacity:0.85}
-.nav-icon{font-size:18px;line-height:1}
+.nav-icon{font-size:21px;line-height:1}
 .nav-label{font-size:9px;font-weight:500;white-space:nowrap}
 .chart-wrap{position:relative;width:100%;height:190px}
 .section{display:none}.section.active{display:block}
@@ -168,12 +168,21 @@ textarea{resize:none;height:64px}
   <div class="header-top">
     <div style="flex:1;min-width:0">
       <h1>💰 Keuangan Keluarga</h1>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
-        <span class="period-badge" id="header-period">Memuat...</span>
-        <select class="member-select" id="member-filter" onchange="render()">
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+        <select id="period-dropdown" onchange="setPeriodFromDropdown(this.value)"
+          style="font-family:var(--mono);font-size:11px;border:1px solid var(--border);border-radius:20px;padding:3px 8px;background:var(--surface2);color:var(--text);appearance:none;-webkit-appearance:none;cursor:pointer;max-width:130px;overflow:hidden;text-overflow:ellipsis">
+        </select>
+        <select class="member-select" id="member-filter" onchange="render()"
+          style="font-size:11px;padding:3px 8px">
           <option value="all">Semua</option><option>Ayah</option><option>Ibu</option><option>Anak</option>
         </select>
       </div>
+    </div>
+    <!-- Gauge Chart -->
+    <div style="flex-shrink:0;text-align:center;padding-left:8px">
+      <canvas id="gauge-chart" width="110" height="64" style="display:block"></canvas>
+      <div style="font-size:11px;font-weight:700;font-family:var(--mono);margin-top:-4px;line-height:1" id="gauge-label">0%</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:2px">Keluar/Masuk</div>
     </div>
   </div>
 </div>
@@ -186,11 +195,6 @@ textarea{resize:none;height:64px}
 
 <!-- TRANSAKSI -->
 <div id="sec-transaksi" class="section active content">
-  <div class="period-nav">
-    <button class="period-arrow" onclick="changePeriod(-1)">‹</button>
-    <span class="period-text" id="period-label">...</span>
-    <button class="period-arrow" onclick="changePeriod(1)">›</button>
-  </div>
   <div class="card">
     <div class="card-title-row">
       <div class="riwayat-title">Histori Transaksi</div>
@@ -278,51 +282,226 @@ textarea{resize:none;height:64px}
   </div>
 </div>
 
-<!-- ACTUAL BUDGET -->
+<!-- AKTUAL & GRAFIK (digabung) -->
 <div id="sec-aktual" class="section content">
-  <div class="card">
-    <div class="card-title-row">
-      <div class="card-title">Actual Budget</div>
-      <span id="aktual-period-label" style="font-size:11px;color:var(--text3)"></span>
-    </div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:10px" id="aktual-snapshot-info">Belum ada snapshot budget. Atur budget di tab Budgeting lalu tekan "Update Budget".</div>
-    <div id="budget-progress"><div class="empty">Atur budget dulu di tab Budgeting</div></div>
+
+  <!-- View Mode Toggle -->
+  <div style="display:flex;background:var(--surface2);border-radius:var(--radius-sm);padding:3px;margin-bottom:12px;gap:3px">
+    <button id="view-btn-detail" onclick="setAktualView('detail')"
+      style="flex:1;padding:9px;border:none;border-radius:calc(var(--radius-sm) - 2px);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+      📋 Detail
+    </button>
+    <button id="view-btn-grafik" onclick="setAktualView('grafik')"
+      style="flex:1;padding:9px;border:none;border-radius:calc(var(--radius-sm) - 2px);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;background:none;color:var(--text2)">
+      📊 Grafik
+    </button>
   </div>
+
+  <!-- DETAIL VIEW -->
+  <div id="aktual-detail-view">
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Actual Budget</div>
+        <span id="aktual-period-label" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px" id="aktual-snapshot-info">Belum ada snapshot budget. Atur budget di tab Budgeting lalu tekan "Simpan Budget".</div>
+      <div id="budget-progress"><div class="empty">Atur budget dulu di tab Budgeting</div></div>
+    </div>
+  </div>
+
+  <!-- GRAFIK VIEW -->
+  <div id="aktual-grafik-view" style="display:none">
+    <!-- 1. Horizontal Bar: Budget per kategori -->
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Budget per Kategori</div>
+        <span style="font-size:11px;color:var(--text3)" id="grafik-period-label"></span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Diurutkan % pemakaian · tap bar untuk detail</div>
+      <div id="budget-hbar-container" style="position:relative;min-height:200px"></div>
+    </div>
+    <!-- 2. Line: Akumulasi saldo harian -->
+    <div class="card">
+      <div class="card-title">Pergerakan Saldo Harian</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Akumulasi kenaikan/penurunan saldo dalam periode</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="saldo-chart"></canvas></div>
+    </div>
+    <!-- 3. Bar: Rasio Cash Keluar/Masuk -->
+    <div class="card">
+      <div class="card-title">Rasio Pengeluaran per Periode</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Cash Keluar ÷ Cash Masuk × 100% (6 periode)</div>
+      <div class="chart-wrap" style="height:180px"><canvas id="rasio-chart"></canvas></div>
+    </div>
+  </div>
+
 </div>
 
+<!-- hapus sec-grafik lama -->
+
 <!-- INVESTASI -->
+<!-- KEKAYAAN (Investasi + Harta digabung) -->
 <div id="sec-investasi" class="section content">
-  <div class="card">
-    <div class="card-title-row">
-      <div class="card-title">Portofolio Investasi</div>
-      <button class="btn-sm" style="background:#EEEDFE;color:#3C3489" onclick="toggleForm('inv-form')">+ Tambah</button>
-    </div>
-    <div class="inline-form" id="inv-form">
-      <div class="form-row" style="margin-bottom:8px">
-        <div class="form-group"><label>Jenis</label>
-          <select id="inv-type"><option>Reksadana</option><option>Saham</option><option>Obligasi</option><option>Deposito</option><option>Emas</option><option>Kripto</option><option>Lainnya</option></select></div>
-        <div class="form-group"><label>Nama / Kode</label>
-          <input type="text" id="inv-name" placeholder="cth: BBCA, SBR013"></div>
+
+  <!-- View Toggle -->
+  <div style="display:flex;background:var(--surface2);border-radius:var(--radius-sm);padding:3px;margin-bottom:12px;gap:3px">
+    <button id="kk-btn-investasi" onclick="setKekayaanView('investasi')"
+      style="flex:1;padding:9px;border:none;border-radius:calc(var(--radius-sm) - 2px);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--purple);box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+      📈 Investasi
+    </button>
+    <button id="kk-btn-harta" onclick="setKekayaanView('harta')"
+      style="flex:1;padding:9px;border:none;border-radius:calc(var(--radius-sm) - 2px);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;background:none;color:var(--text2)">
+      🏦 Harta & Hutang
+    </button>
+  </div>
+
+  <!-- INVESTASI VIEW -->
+  <div id="kk-view-investasi">
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Portofolio Investasi</div>
+        <button class="btn-sm" style="background:#EEEDFE;color:#3C3489" onclick="toggleForm('inv-form')">+ Tambah</button>
       </div>
-      <div class="form-row" style="margin-bottom:8px">
-        <div class="form-group"><label>Nilai (Rp)</label>
-          <input type="text" id="inv-val" placeholder="0" inputmode="numeric" oninput="fmtInput(this)"></div>
-        <div class="form-group"><label>Tanggal</label><input type="date" id="inv-date"></div>
+      <div class="inline-form" id="inv-form">
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-group"><label>Jenis</label>
+            <select id="inv-type"><option>Reksadana</option><option>Saham</option><option>Obligasi</option><option>Deposito</option><option>Emas</option><option>Kripto</option><option>Lainnya</option></select></div>
+          <div class="form-group"><label>Nama / Kode</label>
+            <input type="text" id="inv-name" placeholder="cth: BBCA, SBR013"></div>
+        </div>
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-group"><label>Nilai (Rp)</label>
+            <input type="text" id="inv-val" placeholder="0" inputmode="numeric" oninput="fmtInput(this)"></div>
+          <div class="form-group"><label>Tanggal</label><input type="date" id="inv-date"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:8px"><label>Catatan</label>
+          <input type="text" id="inv-note" placeholder="Opsional..."></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-submit" style="background:var(--purple)" onclick="saveInv()">Simpan</button>
+          <button class="btn-submit" style="background:var(--surface2);color:var(--text2)" onclick="toggleForm('inv-form')">Batal</button>
+        </div>
       </div>
-      <div class="form-group" style="margin-bottom:8px"><label>Catatan</label>
-        <input type="text" id="inv-note" placeholder="Opsional..."></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-submit" style="background:var(--purple)" onclick="saveInv()">Simpan</button>
-        <button class="btn-submit" style="background:var(--surface2);color:var(--text2)" onclick="toggleForm('inv-form')">Batal</button>
+      <div id="inv-list"><div class="empty">Belum ada investasi tercatat</div></div>
+      <div class="row-total">
+        <span class="row-total-label">Total Portofolio</span>
+        <span class="row-total-val" style="color:var(--purple)" id="inv-total">Rp 0</span>
       </div>
-    </div>
-    <div id="inv-list"><div class="empty">Belum ada investasi tercatat</div></div>
-    <div class="row-total">
-      <span class="row-total-label">Total Portofolio</span>
-      <span class="row-total-val" style="color:var(--purple)" id="inv-total">Rp 0</span>
     </div>
   </div>
-</div>
+
+  <!-- HARTA & HUTANG VIEW -->
+  <div id="kk-view-harta" style="display:none">
+
+    <!-- Kekayaan Bersih -->
+    <div class="card">
+      <div class="card-title">Ringkasan Kekayaan Bersih</div>
+      <div class="networth-grid">
+        <div class="nw-card" style="background:#E8F5EE">
+          <div class="nw-label" style="color:#085041">Harta</div>
+          <div class="nw-value" style="color:var(--green)" id="nw-harta">Rp 0</div>
+        </div>
+        <div class="nw-card" style="background:#EEEDFE">
+          <div class="nw-label" style="color:#3C3489">Investasi</div>
+          <div class="nw-value" style="color:var(--purple)" id="nw-invest">Rp 0</div>
+        </div>
+        <div class="nw-card" style="background:#FAEAE7">
+          <div class="nw-label" style="color:#712B13">Hutang</div>
+          <div class="nw-value" style="color:var(--red)" id="nw-hutang">Rp 0</div>
+        </div>
+        <div class="nw-card" id="nw-bersih-card" style="background:#E8F5EE">
+          <div class="nw-label" style="color:var(--text3)">Kekayaan Bersih</div>
+          <div class="nw-value" id="nw-bersih">Rp 0</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);text-align:center">Harta + Investasi − Hutang</div>
+    </div>
+
+    <!-- Saldo Awal -->
+    <div class="card">
+      <div class="card-title">Saldo Awal Kas</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <input type="text" id="saldo-awal-input" placeholder="0" inputmode="numeric"
+            oninput="fmtInput(this)" onblur="saveSaldoAwal()"
+            style="font-family:var(--mono);font-size:15px;font-weight:500">
+        </div>
+        <button class="btn-sm" style="background:var(--accent);color:white;padding:9px 14px" onclick="saveSaldoAwal()">Simpan</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Saldo kas sebelum mulai mencatat transaksi. Dijumlahkan ke kas otomatis.</div>
+    </div>
+
+    <!-- Hutang -->
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Daftar Hutang</div>
+        <button class="btn-sm" style="background:#FAEAE7;color:#712B13" onclick="toggleForm('hutang-form')">+ Tambah</button>
+      </div>
+      <div class="inline-form" id="hutang-form">
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-group"><label>Jenis</label>
+            <select id="hutang-type"><option>KPR</option><option>KKB</option><option>KTA</option><option>Kartu Kredit</option><option>Pinjaman Keluarga</option><option>Pinjaman Usaha</option><option>Lainnya</option></select></div>
+          <div class="form-group"><label>Keterangan</label>
+            <input type="text" id="hutang-name" placeholder="cth: KPR BCA"></div>
+        </div>
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-group"><label>Sisa Hutang (Rp)</label>
+            <input type="text" id="hutang-val" placeholder="0" inputmode="numeric" oninput="fmtInput(this)"></div>
+          <div class="form-group"><label>Cicilan/bln (Rp)</label>
+            <input type="text" id="hutang-cicilan" placeholder="0" inputmode="numeric" oninput="fmtInput(this)"></div>
+        </div>
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-group"><label>Jatuh Tempo</label><input type="date" id="hutang-due"></div>
+          <div class="form-group"><label>Anggota</label>
+            <select id="hutang-member"><option>Ayah</option><option>Ibu</option><option>Anak</option><option>Keluarga</option></select></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-submit" onclick="saveHutang()">Simpan</button>
+          <button class="btn-submit" style="background:var(--surface2);color:var(--text2)" onclick="toggleForm('hutang-form')">Batal</button>
+        </div>
+      </div>
+      <div id="hutang-list"><div class="empty">Belum ada hutang tercatat</div></div>
+      <div class="row-total">
+        <span class="row-total-label">Total Hutang</span>
+        <span class="row-total-val" style="color:var(--red)" id="hutang-total">Rp 0</span>
+      </div>
+    </div>
+
+    <!-- Harta -->
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Daftar Harta</div>
+        <button class="btn-sm" style="background:#E6F1FB;color:#0C447C" onclick="toggleForm('harta-form')">+ Tambah</button>
+      </div>
+      <div class="inline-form" id="harta-form">
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-group"><label>Jenis</label>
+            <select id="harta-type" onchange="updateHartaKat()">
+              <option value="bergerak">Bergerak</option>
+              <option value="tidak_bergerak">Tidak Bergerak</option>
+              <option value="emas">Emas</option>
+              <option value="kas">Kas / Setara Kas</option>
+            </select></div>
+          <div class="form-group"><label>Kategori</label><select id="harta-kat"></select></div>
+        </div>
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-group"><label>Nama / Deskripsi</label>
+            <input type="text" id="harta-name" placeholder="cth: Honda Civic 2022"></div>
+          <div class="form-group"><label>Estimasi Nilai (Rp)</label>
+            <input type="text" id="harta-val" placeholder="0" inputmode="numeric" oninput="fmtInput(this)"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-submit" style="background:var(--blue)" onclick="saveHarta()">Simpan</button>
+          <button class="btn-submit" style="background:var(--surface2);color:var(--text2)" onclick="toggleForm('harta-form')">Batal</button>
+        </div>
+      </div>
+      <div id="harta-list"><div class="empty">Belum ada harta tercatat</div></div>
+      <div class="row-total">
+        <span class="row-total-label">Total Harta</span>
+        <span class="row-total-val" style="color:var(--blue)" id="harta-total">Rp 0</span>
+      </div>
+    </div>
+
+  </div><!-- end kk-view-harta -->
+</div><!-- end sec-investasi -->
 
 <!-- HARTA & HUTANG -->
 <div id="sec-harta" class="section content">
@@ -434,22 +613,6 @@ textarea{resize:none;height:64px}
       <span class="row-total-label">Total Harta</span>
       <span class="row-total-val" style="color:var(--blue)" id="harta-total">Rp 0</span>
     </div>
-  </div>
-</div>
-
-<!-- GRAFIK -->
-<div id="sec-grafik" class="section content">
-  <div class="card">
-    <div class="card-title">Pengeluaran per Kategori</div>
-    <div class="chart-wrap"><canvas id="cat-chart"></canvas></div>
-  </div>
-  <div class="card">
-    <div class="card-title">Arus Kas 6 Periode</div>
-    <div class="legend-wrap">
-      <div class="legend-item"><div class="legend-dot" style="background:#2A7A5A"></div>Masuk</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#B83A2A"></div>Keluar</div>
-    </div>
-    <div class="chart-wrap"><canvas id="flow-chart"></canvas></div>
   </div>
 </div>
 
@@ -573,16 +736,26 @@ textarea{resize:none;height:64px}
     </div>
   </div>
 
-  <!-- Export Excel -->
+  <!-- Export & Import -->
   <div class="card">
-    <div class="setting-title">📊 Export Data</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Export semua transaksi ke file Excel (.csv) yang bisa dibuka di Google Sheets atau Microsoft Excel</div>
-    <button onclick="exportExcel()" style="width:100%;padding:12px;border:none;border-radius:var(--radius-sm);background:#E8F5EE;color:#085041;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #b7dfc9;margin-bottom:8px">
-      📥 Export Transaksi ke Excel (CSV)
+    <div class="setting-title">📊 Export & Import Data</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Export ke Excel atau backup/restore semua data</div>
+    <button onclick="exportExcel()" style="width:100%;padding:12px;border:1px solid #b7dfc9;border-radius:var(--radius-sm);background:#E8F5EE;color:#085041;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+      📥 Export Transaksi ke Excel (.xlsx)
     </button>
-    <button onclick="exportAllExcel()" style="width:100%;padding:12px;border:none;border-radius:var(--radius-sm);background:#E6F1FB;color:#0C447C;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #b3d1f0">
-      📋 Export Semua Data (Transaksi + Investasi + Harta)
+    <button onclick="exportAllExcel()" style="width:100%;padding:12px;border:1px solid #b3d1f0;border-radius:var(--radius-sm);background:#E6F1FB;color:#0C447C;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+      📋 Export Semua Data (.xlsx)
     </button>
+    <div style="border-top:1px solid var(--border);margin:10px 0"></div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Import backup JSON untuk restore semua data</div>
+    <button onclick="document.getElementById('import-file-input').click()" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text2);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+      📤 Import Data dari File JSON
+    </button>
+    <button onclick="exportBackupJSON()" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text2);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+      💾 Export Backup JSON (semua data)
+    </button>
+    <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="importBackupJSON(this)">
+    <div id="import-status" style="font-size:12px;margin-top:8px;text-align:center"></div>
   </div>
 
   <!-- Penyimpanan & Reset -->
@@ -618,13 +791,12 @@ textarea{resize:none;height:64px}
   <button class="nav-btn active" id="nav-transaksi" onclick="switchTab('transaksi')"><span class="nav-icon">📋</span><span class="nav-label">Transaksi</span></button>
   <button class="nav-btn" id="nav-budget" onclick="switchTab('budget')"><span class="nav-icon">🎯</span><span class="nav-label">Budgeting</span></button>
   <button class="nav-btn" id="nav-aktual" onclick="switchTab('aktual')"><span class="nav-icon">📊</span><span class="nav-label">Aktual</span></button>
-  <button class="nav-btn" id="nav-investasi" onclick="switchTab('investasi')"><span class="nav-icon">📈</span><span class="nav-label">Investasi</span></button>
-  <button class="nav-btn" id="nav-harta" onclick="switchTab('harta')"><span class="nav-icon">🏠</span><span class="nav-label">Harta</span></button>
-  <button class="nav-btn" id="nav-grafik" onclick="switchTab('grafik')"><span class="nav-icon">📉</span><span class="nav-label">Grafik</span></button>
+  <button class="nav-btn" id="nav-investasi" onclick="switchTab('investasi')"><span class="nav-icon">📈</span><span class="nav-label">Kekayaan</span></button>
   <button class="nav-btn" id="nav-pengaturan" onclick="switchTab('pengaturan')"><span class="nav-icon">⚙️</span><span class="nav-label">Pengaturan</span></button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DEFAULT_CATS_OUT=[{name:'Makanan',icon:'🍽'},{name:'Transportasi',icon:'🚗'},{name:'Belanja',icon:'🛒'},{name:'Kesehatan',icon:'💊'},{name:'Pendidikan',icon:'📚'},{name:'Tagihan',icon:'💡'},{name:'Hiburan',icon:'🎬'},{name:'Lainnya',icon:'📌'}];
 const CATS_IN=[{name:'Gaji',icon:'💰'},{name:'Bonus',icon:'🎁'},{name:'Usaha',icon:'🏪'},{name:'Investasi',icon:'📈'},{name:'Lainnya',icon:'📌'}];
@@ -712,33 +884,78 @@ function delMember(i){
   MEMBERS.splice(i,1);svM();renderMemberSetting();
 }
 
-// ── EXPORT CSV/EXCEL ──
-function escapeCsv(v){const s=String(v||'');return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;}
-function downloadCsv(filename,rows){
-  const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
-}
+// ── EXPORT XLSX ──
 function exportExcel(){
-  const headers=['Tanggal','Jenis','Kategori','Anggota','Jumlah (Rp)','Keterangan'];
-  const rows=txs.map(t=>[t.date,t.type==='pemasukan'?'Pemasukan':'Pengeluaran',t.cat,t.member,t.amount,t.note||'']);
-  downloadCsv('transaksi-keuangan.csv',[headers,...rows]);
+  const ws=XLSX.utils.json_to_sheet(txs.map(t=>({
+    'Tanggal':t.date,
+    'Jenis':t.type==='pemasukan'?'Pemasukan':'Pengeluaran',
+    'Kategori':t.cat,
+    'Anggota':t.member,
+    'Jumlah (Rp)':t.amount,
+    'Keterangan':t.note||''
+  })));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Transaksi');
+  XLSX.writeFile(wb,'transaksi-keuangan.xlsx');
 }
 function exportAllExcel(){
-  let csv='=== TRANSAKSI ===\n';
-  csv+=['Tanggal','Jenis','Kategori','Anggota','Jumlah (Rp)','Keterangan'].map(escapeCsv).join(',')+'\n';
-  csv+=txs.map(t=>[t.date,t.type==='pemasukan'?'Pemasukan':'Pengeluaran',t.cat,t.member,t.amount,t.note||''].map(escapeCsv).join(',')).join('\n');
-  csv+='\n\n=== INVESTASI ===\n';
-  csv+=['Tanggal','Jenis','Nama','Nilai (Rp)','Catatan'].map(escapeCsv).join(',')+'\n';
-  csv+=investments.map(i=>[i.date,i.type,i.name,i.val,i.note||''].map(escapeCsv).join(',')).join('\n');
-  csv+='\n\n=== HARTA ===\n';
-  csv+=['Jenis','Kategori','Nama','Estimasi Nilai (Rp)'].map(escapeCsv).join(',')+'\n';
-  csv+=assets.map(a=>[a.type,a.kat,a.name,a.val].map(escapeCsv).join(',')).join('\n');
-  csv+='\n\n=== HUTANG ===\n';
-  csv+=['Jenis','Nama','Sisa Hutang (Rp)','Cicilan/bln (Rp)','Anggota'].map(escapeCsv).join(',')+'\n';
-  csv+=debts.map(d=>[d.type,d.name,d.val,d.cicilan||0,d.member].map(escapeCsv).join(',')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='keuangan-keluarga-lengkap.csv';a.click();
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(txs.map(t=>({
+    'Tanggal':t.date,'Jenis':t.type==='pemasukan'?'Pemasukan':'Pengeluaran',
+    'Kategori':t.cat,'Anggota':t.member,'Jumlah (Rp)':t.amount,'Keterangan':t.note||''
+  }))),'Transaksi');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(investments.map(i=>({
+    'Tanggal':i.date,'Jenis':i.type,'Nama':i.name,'Nilai (Rp)':i.val,'Catatan':i.note||''
+  }))),'Investasi');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(assets.map(a=>({
+    'Jenis':a.type,'Kategori':a.kat,'Nama':a.name,'Estimasi Nilai (Rp)':a.val
+  }))),'Harta');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(debts.map(d=>({
+    'Jenis':d.type,'Nama':d.name,'Sisa Hutang (Rp)':d.val,'Cicilan/bln':d.cicilan||0,'Anggota':d.member
+  }))),'Hutang');
+  XLSX.writeFile(wb,'keuangan-keluarga-lengkap.xlsx');
+}
+
+// ── BACKUP & IMPORT JSON ──
+function exportBackupJSON(){
+  const data={version:3,savedAt:new Date().toISOString(),txs,budgets,CATS_OUT,investments,debts,assets,saldoAwal,budgetSnapshot,budgetPerPeriod,MEMBERS};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='keuangan-backup-'+new Date().toISOString().split('T')[0]+'.json';a.click();
+}
+function importBackupJSON(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      if(!confirm('Import data? Semua data saat ini akan diganti dengan data dari file ini.'))return;
+      if(d.txs) txs=d.txs;
+      if(d.budgets) budgets=d.budgets;
+      if(d.CATS_OUT) CATS_OUT=d.CATS_OUT;
+      if(d.investments) investments=d.investments;
+      if(d.debts) debts=d.debts;
+      if(d.assets) assets=d.assets;
+      if(d.saldoAwal!==undefined) saldoAwal=d.saldoAwal;
+      if(d.budgetSnapshot) budgetSnapshot=d.budgetSnapshot;
+      if(d.budgetPerPeriod) budgetPerPeriod=d.budgetPerPeriod;
+      if(d.MEMBERS) MEMBERS=d.MEMBERS;
+      sv();svB();svC();svI();svD();svA();svBP();svM();
+      localStorage.setItem('fam_saldo_awal',saldoAwal);
+      localStorage.setItem('fam_budget_snapshot',JSON.stringify(budgetSnapshot));
+      render();renderInv();renderHutang();renderHarta();renderNW();renderBudgetForm();renderMemberSetting();
+      if(saldoAwal) document.getElementById('saldo-awal-input').value=saldoAwal.toLocaleString('id-ID');
+      const s=document.getElementById('import-status');
+      s.textContent='✅ Import berhasil! '+txs.length+' transaksi dimuat.';
+      s.style.color='var(--green)';
+    }catch(err){
+      const s=document.getElementById('import-status');
+      s.textContent='❌ File tidak valid: '+err.message;
+      s.style.color='var(--red)';
+    }
+    input.value='';
+  };
+  reader.readAsText(file);
 }
 
 // Key periode budget: format "2026-02" dari tanggal mulai periode
@@ -922,7 +1139,72 @@ function periodLabel(o){
   return f(start)+' – '+f(end);
 }
 function inPeriod(ds,o){const{start,end}=getPeriod(o);const d=new Date(ds);return d>=start&&d<=end;}
-function changePeriod(d){periodOffset+=d;if(periodOffset>0)periodOffset=0;render();}
+function changePeriod(d){periodOffset+=d;if(periodOffset>0)periodOffset=0;syncPeriodDropdown();render();}
+
+function initPeriodDropdown(){
+  const sel=document.getElementById('period-dropdown');
+  if(!sel)return;
+  sel.innerHTML='';
+  for(let i=0;i>=-11;i--){
+    const {start,end}=getPeriod(i);
+    const fmt2=d=>d.toLocaleDateString('id-ID',{day:'numeric',month:'short'});
+    const label=fmt2(start)+' – '+fmt2(end);
+    const opt=document.createElement('option');
+    opt.value=i; opt.textContent=label;
+    if(i===periodOffset) opt.selected=true;
+    sel.appendChild(opt);
+  }
+}
+
+function syncPeriodDropdown(){
+  const sel=document.getElementById('period-dropdown');
+  if(sel) sel.value=periodOffset;
+}
+
+function setPeriodFromDropdown(v){
+  periodOffset=parseInt(v);
+  render();
+}
+
+// ── Gauge Chart ──
+function drawGauge(pct){
+  const canvas=document.getElementById('gauge-chart');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2, cy=H-6, r=H-14;
+  // Background track
+  ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,2*Math.PI);
+  ctx.lineWidth=12;ctx.strokeStyle='#E2DDD5';ctx.lineCap='round';ctx.stroke();
+  // Color segments
+  const segs=[
+    {from:0,to:60,color:'#2A7A5A'},
+    {from:60,to:80,color:'#8A5A10'},
+    {from:80,to:100,color:'#D4830A'},
+    {from:100,to:120,color:'#B83A2A'}
+  ];
+  segs.forEach(s=>{
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,Math.PI+(s.from/120)*Math.PI,Math.PI+(Math.min(s.to,120)/120)*Math.PI);
+    ctx.lineWidth=12;ctx.strokeStyle=s.color;ctx.lineCap='butt';ctx.stroke();
+  });
+  // Needle
+  const clamped=Math.min(pct,120);
+  const angle=Math.PI+(clamped/120)*Math.PI;
+  ctx.beginPath();
+  ctx.moveTo(cx,cy);
+  ctx.lineTo(cx+Math.cos(angle)*(r-3), cy+Math.sin(angle)*(r-3));
+  ctx.lineWidth=2.5;ctx.strokeStyle='#1A1814';ctx.lineCap='round';ctx.stroke();
+  // Center dot
+  ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fillStyle='#1A1814';ctx.fill();
+  // Label color
+  const lbl=document.getElementById('gauge-label');
+  if(lbl){
+    lbl.textContent=pct+'%';
+    lbl.style.color=pct>=100?'var(--red)':pct>=80?'#D4830A':pct>=60?'#8A5A10':'var(--green)';
+  }
+}
 
 function setType(t){
   txType=t;
@@ -1001,8 +1283,11 @@ function render(){
   document.getElementById('m-in').textContent=fmt(income);
   document.getElementById('m-out').textContent=fmt(expense);
   const bEl=document.getElementById('m-bal');bEl.textContent=fmt(bal);bEl.style.color=bal>=0?'var(--green)':'var(--red)';
-  document.getElementById('header-period').textContent=periodLabel(periodOffset);
-  document.getElementById('period-label').textContent=periodLabel(periodOffset);
+  // Gauge
+  const rasio=income>0?Math.round(expense/income*100):0;
+  drawGauge(rasio);
+  // Period dropdown sync
+  syncPeriodDropdown();
   const icons={};[...CATS_OUT,...CATS_IN].forEach(c=>icons[c.name]=c.icon);
 
   // Sorting
@@ -1220,36 +1505,176 @@ function renderNW(){
 }
 
 // CHARTS
+// ── Format angka axis ──
+function fmtAxis(n){
+  if(n>=1000000000) return (n/1000000000).toFixed(1).replace(/\.0$/,'')+'M';
+  if(n>=1000000) return (n/1000000).toFixed(1).replace(/\.0$/,'')+'Jt';
+  if(n>=1000) return (n/1000).toFixed(0)+'K';
+  return String(n);
+}
+let saldoChart=null,rasioChart=null;
 function renderCharts(){
-  const exp=getFiltered(periodOffset).filter(t=>t.type==='pengeluaran');
-  const bycat={};exp.forEach(t=>bycat[t.cat]=(bycat[t.cat]||0)+t.amount);
-  const cats=Object.keys(bycat).filter(c=>bycat[c]>0);
-  if(catChart)catChart.destroy();
-  if(cats.length){catChart=new Chart(document.getElementById('cat-chart'),{type:'doughnut',
-    data:{labels:cats,datasets:[{data:cats.map(c=>bycat[c]),backgroundColor:cats.map(c=>CAT_COLORS[c]||'#888'),borderWidth:0,hoverOffset:6}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10,family:'Plus Jakarta Sans'},boxWidth:9,padding:7}},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}}}});}
-  const labels=[],inc=[],expA=[];
+  const {start,end}=getPeriod(periodOffset);
+  const periodTxs=getFiltered(periodOffset);
+  const gpl=document.getElementById('grafik-period-label');
+  if(gpl) gpl.textContent=periodLabel(periodOffset);
+  // Grafik 1: Horizontal bar chart (Chart.js style)
+  const snap=budgetSnapshot;
+  const container=document.getElementById('budget-hbar-container');
+  if(container){
+    // Hapus canvas lama jika ada
+    container.innerHTML='<canvas id="hbar-chart"></canvas>';
+    if(snap){
+      const expCur=periodTxs.filter(t=>t.type==='pengeluaran');
+      const allCats=[...snap.cats];
+      // Tambah kategori yang punya transaksi tapi tidak di snapshot
+      expCur.forEach(t=>{if(!allCats.find(c=>c.name===t.cat))allCats.push({name:t.cat,icon:'📌'});});
+      const data=allCats.map(c=>{
+        const spent=expCur.filter(t=>t.cat===c.name).reduce((s,t)=>s+t.amount,0);
+        const budget=snap.budgets[c.name]||0;
+        const pct=budget>0?Math.round(spent/budget*100):spent>0?999:0;
+        return{name:c.name,icon:c.icon,spent,budget,pct};
+      }).sort((a,b)=>a.pct-b.pct); // ascending → terbesar di atas
+
+      const labels=data.map(d=>d.icon+' '+d.name);
+      const spentVals=data.map(d=>d.spent);
+      const budgetVals=data.map(d=>d.budget||0);
+      const barColors=data.map(d=>d.pct>=100?'rgba(184,58,42,0.85)':d.pct>=80?'rgba(138,90,16,0.8)':'rgba(42,122,90,0.8)');
+      const budgetColors=data.map(()=>'rgba(180,180,180,0.35)');
+
+      // Tinggi dinamis sesuai jumlah kategori
+      const barH=Math.max(200, data.length*36);
+      container.style.height=barH+'px';
+      container.innerHTML='<canvas id="hbar-chart"></canvas>';
+
+      if(window._hbarChart) window._hbarChart.destroy();
+      window._hbarChart=new Chart(document.getElementById('hbar-chart'),{
+        type:'bar',
+        data:{
+          labels,
+          datasets:[{
+            data:spentVals,
+            backgroundColor:barColors,
+            borderRadius:4,
+            barPercentage:0.55,
+            categoryPercentage:0.8
+          }]
+        },
+        options:{
+          indexAxis:'y',
+          responsive:true,maintainAspectRatio:false,
+          plugins:{
+            legend:{display:false},
+            tooltip:{callbacks:{
+              label:ctx=>{
+                const d=data[ctx.dataIndex];
+                const pctStr=d.budget?' · '+d.pct+'%':'';
+                return ' '+fmt(d.spent)+pctStr;
+              },
+              afterBody:(items)=>{
+                const d=data[items[0].dataIndex];
+                if(!d.budget) return [];
+                const sisa=d.budget-d.spent;
+                return [sisa>=0?' Sisa: '+fmt(sisa):' Over: '+fmt(Math.abs(sisa)),' Budget: '+fmt(d.budget)];
+              }
+            }}
+          },
+          onClick:(evt,elements)=>{
+            if(elements.length>0) showBudgetDetail(data[elements[0].index].name);
+          },
+          scales:{
+            x:{ticks:{font:{size:9},callback:v=>fmtAxis(v)},grid:{color:'#E2DDD5'}},
+            y:{ticks:{font:{size:10}},grid:{display:false}}
+          }
+        }
+      });
+    } else {
+      container.style.height='auto';
+      container.innerHTML='<div class="empty">Simpan budget di tab Budgeting terlebih dahulu</div>';
+    }
+  }
+  // Grafik 2: Saldo harian
+  const allDates=[];const dLoop=new Date(start);
+  while(dLoop<=end){allDates.push(dLoop.toISOString().split('T')[0]);dLoop.setDate(dLoop.getDate()+1);}
+  let baseS=saldoAwal;
+  txs.filter(t=>new Date(t.date)<start).forEach(t=>{baseS+=t.type==='pemasukan'?t.amount:-t.amount;});
+  const txsByDate={};
+  txs.filter(t=>{const d=new Date(t.date);return d>=start&&d<=end;})
+    .forEach(t=>{if(!txsByDate[t.date])txsByDate[t.date]=[];txsByDate[t.date].push(t);});
+  const today=new Date().toISOString().split('T')[0];
+  const saldoLabels=[],saldoData=[];let cur=baseS;
+  allDates.forEach(d=>{
+    if(d>today)return;
+    if(txsByDate[d])txsByDate[d].forEach(t=>{cur+=t.type==='pemasukan'?t.amount:-t.amount;});
+    saldoLabels.push(d.slice(5));saldoData.push(cur);
+  });
+  if(saldoChart)saldoChart.destroy();
+  saldoChart=new Chart(document.getElementById('saldo-chart'),{type:'line',
+    data:{labels:saldoLabels,datasets:[{data:saldoData,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.08)',fill:true,tension:0.3,pointRadius:2,pointHoverRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}},
+      scales:{x:{ticks:{font:{size:9},maxTicksLimit:8,maxRotation:0},grid:{display:false}},
+        y:{ticks:{font:{size:9},callback:v=>(v<0?'-':'')+fmtAxis(Math.abs(v))},grid:{color:'#E2DDD5'}}}}});
+  // Grafik 3: Rasio pengeluaran
+  const rLabels=[],rData=[],rColors=[];
   for(let i=5;i>=0;i--){
     const pt=txs.filter(t=>inPeriod(t.date,-i));
-    labels.push(periodLabel(-i).split(' – ')[0]);
-    inc.push(pt.filter(t=>t.type==='pemasukan').reduce((s,t)=>s+t.amount,0));
-    expA.push(pt.filter(t=>t.type==='pengeluaran').reduce((s,t)=>s+t.amount,0));
+    const inc=pt.filter(t=>t.type==='pemasukan').reduce((s,t)=>s+t.amount,0);
+    const exp2=pt.filter(t=>t.type==='pengeluaran').reduce((s,t)=>s+t.amount,0);
+    const rasio=inc>0?Math.round(exp2/inc*100):0;
+    rLabels.push(periodLabel(-i).split(' – ')[0]);
+    rData.push(rasio);rColors.push(rasio>=100?'#B83A2A':rasio>=80?'#8A5A10':'#2A7A5A');
   }
-  if(flowChart)flowChart.destroy();
-  flowChart=new Chart(document.getElementById('flow-chart'),{type:'bar',
-    data:{labels,datasets:[{label:'Masuk',data:inc,backgroundColor:'#2A7A5A',borderRadius:4},{label:'Keluar',data:expA,backgroundColor:'#B83A2A',borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-      scales:{x:{ticks:{font:{size:9},maxRotation:30},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>'Rp '+Number(v).toLocaleString('id-ID')},grid:{color:'#E2DDD5'}}}}});
+  if(rasioChart)rasioChart.destroy();
+  rasioChart=new Chart(document.getElementById('rasio-chart'),{type:'bar',
+    data:{labels:rLabels,datasets:[{data:rData,backgroundColor:rColors,borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.raw+'% pengeluaran dari pemasukan'}}},
+      scales:{x:{ticks:{font:{size:9},maxRotation:30},grid:{display:false}},
+        y:{min:0,ticks:{font:{size:9},callback:v=>v+'%'},grid:{color:'#E2DDD5'}}}}});
+}
+
+let kekayaanView='investasi';
+function setKekayaanView(mode){
+  kekayaanView=mode;
+  document.getElementById('kk-view-investasi').style.display=mode==='investasi'?'block':'none';
+  document.getElementById('kk-view-harta').style.display=mode==='harta'?'block':'none';
+  const bi=document.getElementById('kk-btn-investasi');
+  const bh=document.getElementById('kk-btn-harta');
+  bi.style.background=mode==='investasi'?'var(--surface)':'none';
+  bi.style.color=mode==='investasi'?'var(--purple)':'var(--text2)';
+  bi.style.fontWeight=mode==='investasi'?'600':'500';
+  bi.style.boxShadow=mode==='investasi'?'0 1px 3px rgba(0,0,0,0.1)':'none';
+  bh.style.background=mode==='harta'?'var(--surface)':'none';
+  bh.style.color=mode==='harta'?'var(--blue)':'var(--text2)';
+  bh.style.fontWeight=mode==='harta'?'600':'500';
+  bh.style.boxShadow=mode==='harta'?'0 1px 3px rgba(0,0,0,0.1)':'none';
+}
+
+let aktualView='detail';
+function setAktualView(mode){
+  aktualView=mode;
+  document.getElementById('aktual-detail-view').style.display=mode==='detail'?'block':'none';
+  document.getElementById('aktual-grafik-view').style.display=mode==='grafik'?'block':'none';
+  const detBtn=document.getElementById('view-btn-detail');
+  const grafBtn=document.getElementById('view-btn-grafik');
+  detBtn.style.background=mode==='detail'?'var(--surface)':'none';
+  detBtn.style.color=mode==='detail'?'var(--accent)':'var(--text2)';
+  detBtn.style.fontWeight=mode==='detail'?'600':'500';
+  detBtn.style.boxShadow=mode==='detail'?'0 1px 3px rgba(0,0,0,0.1)':'none';
+  grafBtn.style.background=mode==='grafik'?'var(--surface)':'none';
+  grafBtn.style.color=mode==='grafik'?'var(--accent)':'var(--text2)';
+  grafBtn.style.fontWeight=mode==='grafik'?'600':'500';
+  grafBtn.style.boxShadow=mode==='grafik'?'0 1px 3px rgba(0,0,0,0.1)':'none';
+  if(mode==='grafik') setTimeout(renderCharts,80);
 }
 
 function switchTab(name){
-  ['transaksi','tambah','budget','aktual','investasi','harta','grafik','pengaturan'].forEach(n=>{
+  ['transaksi','tambah','budget','aktual','investasi','pengaturan'].forEach(n=>{
     document.getElementById('sec-'+n).classList.toggle('active',n===name);
     const nav=document.getElementById('nav-'+n);
     if(nav) nav.classList.toggle('active',n===name);
   });
-  if(name==='grafik') setTimeout(renderCharts,80);
-  if(name==='aktual') renderAktual();
+  if(name==='aktual'){ renderAktual(); if(aktualView==='grafik') setTimeout(renderCharts,80); }
   if(name==='pengaturan'){
     updateLocalDataSize();
     renderMemberSetting();
@@ -1262,12 +1687,11 @@ function init(){
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('inv-date').value=new Date().toISOString().split('T')[0];
   if(saldoAwal) document.getElementById('saldo-awal-input').value=saldoAwal.toLocaleString('id-ID');
-  // Load budget periode saat ini
   const key=getBudgetPeriodKey(0);
   if(budgetPerPeriod[key]) budgets=JSON.parse(JSON.stringify(budgetPerPeriod[key]));
   document.getElementById('budget-period-label').textContent=periodLabel(0);
-  // Load members ke semua dropdown
   renderMemberSetting();
+  initPeriodDropdown();
   setType('pengeluaran');initEmoji();renderBudgetForm();
   updateHartaKat();renderInv();renderHutang();renderHarta();renderNW();render();
 }
