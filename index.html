@@ -25,10 +25,10 @@
 html{font-size:16px}
 body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(80px + var(--safe-bottom))}
 .header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px 10px;position:sticky;top:0;z-index:50}
-.header-top{display:flex;justify-content:space-between;align-items:flex-start}
-.header h1{font-size:17px;font-weight:600;letter-spacing:-0.3px}
-.period-badge{font-family:var(--mono);font-size:11px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 9px;margin-top:5px;display:inline-block}
-.member-select{font-family:var(--font);font-size:13px;border:1px solid var(--border);border-radius:20px;padding:4px 10px;background:var(--surface);color:var(--text);appearance:none;-webkit-appearance:none;cursor:pointer}
+.header-top{display:flex;align-items:flex-start}
+.header h1{font-size:17px;font-weight:700;letter-spacing:-0.3px;white-space:nowrap}
+.period-badge{font-family:var(--mono);font-size:11px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 9px;display:inline-block}
+.member-select{font-family:var(--font);font-size:12px;border:1px solid var(--border);border-radius:20px;padding:3px 9px;background:var(--surface2);color:var(--text);appearance:none;-webkit-appearance:none;cursor:pointer;width:auto}
 .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:12px 12px 0}
 .metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center}
 .metric-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px}
@@ -166,13 +166,15 @@ textarea{resize:none;height:64px}
 
 <div class="header">
   <div class="header-top">
-    <div>
+    <div style="flex:1;min-width:0">
       <h1>💰 Keuangan Keluarga</h1>
-      <span class="period-badge" id="header-period">Memuat...</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+        <span class="period-badge" id="header-period">Memuat...</span>
+        <select class="member-select" id="member-filter" onchange="render()">
+          <option value="all">Semua</option><option>Ayah</option><option>Ibu</option><option>Anak</option>
+        </select>
+      </div>
     </div>
-    <select class="member-select" id="member-filter" onchange="render()">
-      <option value="all">Semua</option><option>Ayah</option><option>Ibu</option><option>Anak</option>
-    </select>
   </div>
 </div>
 
@@ -199,7 +201,7 @@ textarea{resize:none;height:64px}
       <span style="font-size:11px;color:var(--text3);align-self:center">Urut:</span>
       <button class="sort-btn active" id="sort-date" onclick="setSort('date')">📅 Tanggal</button>
       <button class="sort-btn" id="sort-cat" onclick="setSort('cat')">🏷 Kategori</button>
-      <button class="sort-btn" id="sort-amt" onclick="setSort('amount')">💰 Jumlah</button>
+      <button class="sort-btn" id="sort-amount" onclick="setSort('amount')">💰 Jumlah</button>
     </div>
     <div id="tx-list"><div class="empty">Belum ada transaksi periode ini</div></div>
   </div>
@@ -559,69 +561,56 @@ textarea{resize:none;height:64px}
 <!-- PENGATURAN -->
 <div id="sec-pengaturan" class="section content">
 
-  <!-- Google Drive Backup -->
+  <!-- Anggota Keluarga -->
   <div class="card">
-    <div class="setting-title">☁️ Backup ke Google Drive</div>
-
-    <div id="drive-status-box" class="drive-status">
-      <div class="drive-dot disconnected" id="drive-dot"></div>
-      <div style="flex:1">
-        <div class="drive-user" id="drive-user-name">Belum terhubung</div>
-        <div class="drive-user-sub" id="drive-user-email">Login dengan akun Google untuk backup otomatis</div>
-      </div>
-    </div>
-
-    <!-- Sebelum login: perlu Client ID -->
-    <div id="drive-setup" style="display:block">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:500">Masukkan Google Client ID:</div>
-      <input class="client-id-input" id="gapi-client-id" placeholder="xxxx.apps.googleusercontent.com"
-        value="">
-      <div class="drive-info">
-        📋 <strong>Cara dapat Client ID:</strong><br>
-        1. Buka <strong>console.cloud.google.com</strong><br>
-        2. Buat project → APIs & Services → Credentials<br>
-        3. Create OAuth 2.0 Client ID → pilih "Web application"<br>
-        4. Authorized origins: tambahkan URL file ini (atau <em>file://</em>)<br>
-        5. Copy Client ID dan paste di atas
-      </div>
-      <button class="btn-drive btn-drive-connect" style="margin-top:10px" onclick="driveConnect()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        Login dengan Google
-      </button>
-    </div>
-
-    <!-- Setelah login: tombol save & load -->
-    <div id="drive-actions" style="display:none">
-      <button class="btn-drive btn-drive-save" onclick="driveSave()">
-        💾 Simpan Backup ke Drive
-      </button>
-      <button class="btn-drive btn-drive-load" onclick="driveLoad()">
-        📥 Muat Data dari Drive
-      </button>
-      <button class="btn-drive btn-drive-disconnect" onclick="driveDisconnect()">
-        Keluar dari Google
-      </button>
-      <div class="backup-log" id="backup-log"></div>
+    <div class="setting-title">👨‍👩‍👧 Anggota Keluarga</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Nama anggota akan muncul di form transaksi dan filter</div>
+    <div id="member-list-setting"></div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <input type="text" id="new-member-input" placeholder="Nama anggota baru..." maxlength="20"
+        style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:var(--font);font-size:13px;color:var(--text);outline:none">
+      <button onclick="addMember()" style="padding:9px 16px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:white;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer">Tambah</button>
     </div>
   </div>
 
-  <!-- Info penyimpanan lokal -->
+  <!-- Export Excel -->
   <div class="card">
-    <div class="setting-title">💾 Penyimpanan Lokal</div>
-    <div class="setting-section">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span style="font-size:13px;color:var(--text2)">Data tersimpan di browser ini</span>
-        <span style="font-size:12px;font-family:var(--mono);color:var(--accent)" id="local-data-size">—</span>
-      </div>
-      <div class="drive-info">⚠️ Data lokal bisa hilang jika browser di-clear cache. Selalu backup ke Google Drive secara rutin.</div>
+    <div class="setting-title">📊 Export Data</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Export semua transaksi ke file Excel (.csv) yang bisa dibuka di Google Sheets atau Microsoft Excel</div>
+    <button onclick="exportExcel()" style="width:100%;padding:12px;border:none;border-radius:var(--radius-sm);background:#E8F5EE;color:#085041;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #b7dfc9;margin-bottom:8px">
+      📥 Export Transaksi ke Excel (CSV)
+    </button>
+    <button onclick="exportAllExcel()" style="width:100%;padding:12px;border:none;border-radius:var(--radius-sm);background:#E6F1FB;color:#0C447C;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #b3d1f0">
+      📋 Export Semua Data (Transaksi + Investasi + Harta)
+    </button>
+  </div>
+
+  <!-- Penyimpanan & Reset -->
+  <div class="card">
+    <div class="setting-title">💾 Penyimpanan</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px;color:var(--text2)">Ukuran data tersimpan</span>
+      <span style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent)" id="local-data-size">—</span>
     </div>
-    <div class="setting-section">
-      <div class="setting-title" style="color:var(--red)">⚠️ Reset Data</div>
-      <button onclick="resetAllData()" style="width:100%;padding:11px;border:1px solid #FAEAE7;border-radius:var(--radius-sm);background:#FAEAE7;color:var(--red);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer">
-        Hapus Semua Data Lokal
-      </button>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px;color:var(--text2)">Total transaksi</span>
+      <span style="font-family:var(--mono);font-size:12px;font-weight:600" id="setting-tx-count">—</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">
+      <span style="font-size:13px;color:var(--text2)">Periode aktif</span>
+      <span style="font-size:12px;color:var(--text3)" id="setting-period">—</span>
     </div>
   </div>
+
+  <!-- Reset -->
+  <div class="card" style="border-color:#FAEAE7">
+    <div class="setting-title" style="color:var(--red)">⚠️ Reset Data</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Hapus semua data transaksi, investasi, harta, dan hutang. Tindakan ini tidak bisa dibatalkan.</div>
+    <button onclick="resetAllData()" style="width:100%;padding:12px;border:1px solid #FAEAE7;border-radius:var(--radius-sm);background:#FAEAE7;color:var(--red);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer">
+      🗑️ Hapus Semua Data
+    </button>
+  </div>
+
 </div>
 
 <!-- BOTTOM NAV -->
@@ -636,8 +625,6 @@ textarea{resize:none;height:64px}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://apis.google.com/js/api.js" onload="initGapi()"></script>
-<script src="https://accounts.google.com/gsi/client" async></script>
 <script>
 const DEFAULT_CATS_OUT=[{name:'Makanan',icon:'🍽'},{name:'Transportasi',icon:'🚗'},{name:'Belanja',icon:'🛒'},{name:'Kesehatan',icon:'💊'},{name:'Pendidikan',icon:'📚'},{name:'Tagihan',icon:'💡'},{name:'Hiburan',icon:'🎬'},{name:'Lainnya',icon:'📌'}];
 const CATS_IN=[{name:'Gaji',icon:'💰'},{name:'Bonus',icon:'🎁'},{name:'Usaha',icon:'🏪'},{name:'Investasi',icon:'📈'},{name:'Lainnya',icon:'📌'}];
@@ -680,6 +667,7 @@ let saldoAwal=parseInt(localStorage.getItem('fam_saldo_awal')||'0');
 let budgetSnapshot=JSON.parse(localStorage.getItem('fam_budget_snapshot')||'null');
 // Budget per periode: key = "YYYY-MM" (tahun-bulan periode mulai)
 let budgetPerPeriod=JSON.parse(localStorage.getItem('fam_budget_periods')||'{}');
+let MEMBERS=JSON.parse(localStorage.getItem('fam_members')||'["Ayah","Ibu","Anak"]');
 let txType='pengeluaran', periodOffset=0, budgetPeriodOffset=0, selectedEmoji='📌';
 let catChart, flowChart;
 
@@ -690,6 +678,68 @@ const svI=()=>localStorage.setItem('fam_inv',JSON.stringify(investments));
 const svD=()=>localStorage.setItem('fam_debts',JSON.stringify(debts));
 const svA=()=>localStorage.setItem('fam_assets',JSON.stringify(assets));
 const svBP=()=>localStorage.setItem('fam_budget_periods',JSON.stringify(budgetPerPeriod));
+const svM=()=>localStorage.setItem('fam_members',JSON.stringify(MEMBERS));
+
+// ── ANGGOTA KELUARGA ──
+function renderMemberSetting(){
+  document.getElementById('member-list-setting').innerHTML=MEMBERS.map((m,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:16px">👤</span>
+      <span style="flex:1;font-size:13px;font-weight:500">${m}</span>
+      ${MEMBERS.length>1?`<button onclick="delMember(${i})" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px">×</button>`:''}
+    </div>`).join('');
+  const opts=MEMBERS.map(m=>`<option>${m}</option>`).join('');
+  ['f-member','edit-member','hutang-member'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){const cur=el.value;el.innerHTML=opts;if(MEMBERS.includes(cur))el.value=cur;}
+  });
+  const filterEl=document.getElementById('member-filter');
+  if(filterEl){
+    const cur=filterEl.value;
+    filterEl.innerHTML='<option value="all">Semua</option>'+opts;
+    if(cur==='all'||MEMBERS.includes(cur))filterEl.value=cur;else filterEl.value='all';
+  }
+}
+function addMember(){
+  const el=document.getElementById('new-member-input');
+  const name=el.value.trim();
+  if(!name){alert('Masukkan nama');return;}
+  if(MEMBERS.includes(name)){alert('Nama sudah ada');return;}
+  MEMBERS.push(name);svM();el.value='';renderMemberSetting();
+}
+function delMember(i){
+  if(!confirm(`Hapus anggota "${MEMBERS[i]}"?`))return;
+  MEMBERS.splice(i,1);svM();renderMemberSetting();
+}
+
+// ── EXPORT CSV/EXCEL ──
+function escapeCsv(v){const s=String(v||'');return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;}
+function downloadCsv(filename,rows){
+  const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+}
+function exportExcel(){
+  const headers=['Tanggal','Jenis','Kategori','Anggota','Jumlah (Rp)','Keterangan'];
+  const rows=txs.map(t=>[t.date,t.type==='pemasukan'?'Pemasukan':'Pengeluaran',t.cat,t.member,t.amount,t.note||'']);
+  downloadCsv('transaksi-keuangan.csv',[headers,...rows]);
+}
+function exportAllExcel(){
+  let csv='=== TRANSAKSI ===\n';
+  csv+=['Tanggal','Jenis','Kategori','Anggota','Jumlah (Rp)','Keterangan'].map(escapeCsv).join(',')+'\n';
+  csv+=txs.map(t=>[t.date,t.type==='pemasukan'?'Pemasukan':'Pengeluaran',t.cat,t.member,t.amount,t.note||''].map(escapeCsv).join(',')).join('\n');
+  csv+='\n\n=== INVESTASI ===\n';
+  csv+=['Tanggal','Jenis','Nama','Nilai (Rp)','Catatan'].map(escapeCsv).join(',')+'\n';
+  csv+=investments.map(i=>[i.date,i.type,i.name,i.val,i.note||''].map(escapeCsv).join(',')).join('\n');
+  csv+='\n\n=== HARTA ===\n';
+  csv+=['Jenis','Kategori','Nama','Estimasi Nilai (Rp)'].map(escapeCsv).join(',')+'\n';
+  csv+=assets.map(a=>[a.type,a.kat,a.name,a.val].map(escapeCsv).join(',')).join('\n');
+  csv+='\n\n=== HUTANG ===\n';
+  csv+=['Jenis','Nama','Sisa Hutang (Rp)','Cicilan/bln (Rp)','Anggota'].map(escapeCsv).join(',')+'\n';
+  csv+=debts.map(d=>[d.type,d.name,d.val,d.cicilan||0,d.member].map(escapeCsv).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='keuangan-keluarga-lengkap.csv';a.click();
+}
 
 // Key periode budget: format "2026-02" dari tanggal mulai periode
 function getBudgetPeriodKey(offset){
@@ -1200,7 +1250,12 @@ function switchTab(name){
   });
   if(name==='grafik') setTimeout(renderCharts,80);
   if(name==='aktual') renderAktual();
-  if(name==='pengaturan') updateLocalDataSize();
+  if(name==='pengaturan'){
+    updateLocalDataSize();
+    renderMemberSetting();
+    document.getElementById('setting-tx-count').textContent=txs.length+' transaksi';
+    document.getElementById('setting-period').textContent=periodLabel(0);
+  }
 }
 
 function init(){
@@ -1211,6 +1266,8 @@ function init(){
   const key=getBudgetPeriodKey(0);
   if(budgetPerPeriod[key]) budgets=JSON.parse(JSON.stringify(budgetPerPeriod[key]));
   document.getElementById('budget-period-label').textContent=periodLabel(0);
+  // Load members ke semua dropdown
+  renderMemberSetting();
   setType('pengeluaran');initEmoji();renderBudgetForm();
   updateHartaKat();renderInv();renderHutang();renderHarta();renderNW();render();
 }
@@ -1304,206 +1361,24 @@ document.addEventListener('click', function(e){
   else if(action==='delCat') delCat(Number(id));
 });
 
-// ══════════════════════════════════════════
-// GOOGLE DRIVE BACKUP
-// ══════════════════════════════════════════
-const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
-const BACKUP_FILENAME = 'keuangan-keluarga-backup.json';
-let gapiReady = false, tokenClient = null, driveToken = null;
-
-function getBackupData(){
-  return JSON.stringify({
-    version: 2,
-    savedAt: new Date().toISOString(),
-    txs, budgets, CATS_OUT, investments, debts, assets,
-    saldoAwal, budgetSnapshot
-  }, null, 2);
-}
-
-function restoreBackupData(json){
-  const d = JSON.parse(json);
-  if(d.txs) txs = d.txs;
-  if(d.budgets) budgets = d.budgets;
-  if(d.CATS_OUT) CATS_OUT = d.CATS_OUT;
-  if(d.investments) investments = d.investments;
-  if(d.debts) debts = d.debts;
-  if(d.assets) assets = d.assets;
-  if(d.saldoAwal !== undefined) saldoAwal = d.saldoAwal;
-  if(d.budgetSnapshot) budgetSnapshot = d.budgetSnapshot;
-  sv(); svB(); svC(); svI(); svD(); svA();
-  localStorage.setItem('fam_saldo_awal', saldoAwal);
-  localStorage.setItem('fam_budget_snapshot', JSON.stringify(budgetSnapshot));
-  render(); renderInv(); renderHutang(); renderHarta(); renderNW(); renderBudgetForm();
-  if(saldoAwal) document.getElementById('saldo-awal-input').value = saldoAwal.toLocaleString('id-ID');
-}
-
-function setDriveLog(msg, color='var(--text3)'){
-  const el = document.getElementById('backup-log');
-  if(el) { el.textContent = msg; el.style.color = color; }
-}
-
-function updateLocalDataSize(){
-  let total = 0;
-  ['fam_txs','fam_budgets','fam_cats','fam_inv','fam_debts','fam_assets','fam_saldo_awal','fam_budget_snapshot'].forEach(k=>{
-    total += (localStorage.getItem(k)||'').length;
-  });
-  const kb = (total / 1024).toFixed(1);
-  const el = document.getElementById('local-data-size');
-  if(el) el.textContent = kb + ' KB';
-}
-
-function initGapi(){
-  gapi.load('client', async ()=>{
-    await gapi.client.init({ discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'] });
-    gapiReady = true;
-    // Cek token tersimpan
-    const saved = localStorage.getItem('drive_token');
-    if(saved){
-      const t = JSON.parse(saved);
-      if(t.expires_at > Date.now()){
-        driveToken = t;
-        gapi.client.setToken({ access_token: t.access_token });
-        await fetchDriveUser();
-        setDriveConnected(true);
-      }
-    }
-  });
-}
-
-function driveConnect(){
-  const clientId = document.getElementById('gapi-client-id').value.trim();
-  if(!clientId){ alert('Masukkan Client ID Google terlebih dahulu'); return; }
-  localStorage.setItem('drive_client_id', clientId);
-
-  if(!gapiReady){ alert('GAPI belum siap, coba lagi sebentar'); return; }
-
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope: DRIVE_SCOPES,
-    callback: async (resp) => {
-      if(resp.error){ alert('Login gagal: ' + resp.error); return; }
-      driveToken = {
-        access_token: resp.access_token,
-        expires_at: Date.now() + (resp.expires_in * 1000)
-      };
-      gapi.client.setToken({ access_token: resp.access_token });
-      localStorage.setItem('drive_token', JSON.stringify(driveToken));
-      await fetchDriveUser();
-      setDriveConnected(true);
-      setDriveLog('✅ Login berhasil!', 'var(--green)');
-    }
-  });
-  tokenClient.requestAccessToken();
-}
-
-async function fetchDriveUser(){
-  try {
-    const res = await gapi.client.request({ path: 'https://www.googleapis.com/oauth2/v2/userinfo' });
-    const u = JSON.parse(res.body);
-    document.getElementById('drive-user-name').textContent = u.name || 'Akun Google';
-    document.getElementById('drive-user-email').textContent = u.email || '';
-  } catch(e) {
-    document.getElementById('drive-user-name').textContent = 'Akun Google';
-    document.getElementById('drive-user-email').textContent = 'Terhubung';
-  }
-}
-
-function setDriveConnected(connected){
-  document.getElementById('drive-dot').className = 'drive-dot ' + (connected ? 'connected' : 'disconnected');
-  document.getElementById('drive-setup').style.display = connected ? 'none' : 'block';
-  document.getElementById('drive-actions').style.display = connected ? 'block' : 'none';
-  if(!connected){
-    document.getElementById('drive-user-name').textContent = 'Belum terhubung';
-    document.getElementById('drive-user-email').textContent = 'Login dengan akun Google untuk backup otomatis';
-  }
-}
-
-async function findBackupFile(){
-  const res = await gapi.client.drive.files.list({
-    spaces: 'appDataFolder',
-    q: `name='${BACKUP_FILENAME}'`,
-    fields: 'files(id,name,modifiedTime)'
-  });
-  const files = JSON.parse(res.body).files;
-  return files && files.length > 0 ? files[0] : null;
-}
-
-async function driveSave(){
-  if(!driveToken){ alert('Belum login ke Google'); return; }
-  setDriveLog('⏳ Menyimpan...', 'var(--text3)');
-  try {
-    const content = getBackupData();
-    const existing = await findBackupFile();
-    if(existing){
-      // Update file yang sudah ada
-      await gapi.client.request({
-        path: `https://www.googleapis.com/upload/drive/v3/files/${existing.id}`,
-        method: 'PATCH',
-        params: { uploadType: 'media' },
-        headers: { 'Content-Type': 'application/json' },
-        body: content
-      });
-    } else {
-      // Buat file baru di appDataFolder
-      const meta = { name: BACKUP_FILENAME, parents: ['appDataFolder'] };
-      const boundary = '-------314159265358979323846';
-      const body = `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(meta)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`;
-      await gapi.client.request({
-        path: 'https://www.googleapis.com/upload/drive/v3/files',
-        method: 'POST',
-        params: { uploadType: 'multipart' },
-        headers: { 'Content-Type': `multipart/related; boundary="${boundary}"` },
-        body
-      });
-    }
-    const now = new Date().toLocaleString('id-ID');
-    localStorage.setItem('drive_last_backup', now);
-    setDriveLog('✅ Backup tersimpan: ' + now, 'var(--green)');
-  } catch(e) {
-    setDriveLog('❌ Gagal simpan: ' + (e.message||e), 'var(--red)');
-  }
-}
-
-async function driveLoad(){
-  if(!driveToken){ alert('Belum login ke Google'); return; }
-  setDriveLog('⏳ Memuat data...', 'var(--text3)');
-  try {
-    const file = await findBackupFile();
-    if(!file){ setDriveLog('⚠️ Belum ada backup di Drive', 'var(--amber,#8A5A10)'); return; }
-    const res = await gapi.client.request({
-      path: `https://www.googleapis.com/drive/v3/files/${file.id}`,
-      params: { alt: 'media' }
-    });
-    if(!confirm('Muat data dari Drive? Data lokal saat ini akan diganti.')) return;
-    restoreBackupData(res.body);
-    const modified = new Date(file.modifiedTime).toLocaleString('id-ID');
-    setDriveLog('✅ Data dimuat dari backup: ' + modified, 'var(--green)');
-  } catch(e) {
-    setDriveLog('❌ Gagal muat: ' + (e.message||e), 'var(--red)');
-  }
-}
-
-function driveDisconnect(){
-  if(!confirm('Keluar dari Google? Backup otomatis tidak tersedia.')) return;
-  driveToken = null;
-  localStorage.removeItem('drive_token');
-  google.accounts.oauth2.revoke(driveToken?.access_token || '', ()=>{});
-  setDriveConnected(false);
-  setDriveLog('');
-}
 
 function resetAllData(){
   if(!confirm('HAPUS SEMUA DATA? Tindakan ini tidak bisa dibatalkan!')) return;
   if(!confirm('Yakin? Semua transaksi, investasi, harta, hutang akan terhapus.')) return;
-  ['fam_txs','fam_budgets','fam_cats','fam_inv','fam_debts','fam_assets','fam_saldo_awal','fam_budget_snapshot'].forEach(k=>localStorage.removeItem(k));
+  ['fam_txs','fam_budgets','fam_cats','fam_inv','fam_debts','fam_assets','fam_saldo_awal','fam_budget_snapshot','fam_budget_periods','fam_members'].forEach(k=>localStorage.removeItem(k));
   location.reload();
 }
 
+function updateLocalDataSize(){
+  let total=0;
+  ['fam_txs','fam_budgets','fam_cats','fam_inv','fam_debts','fam_assets','fam_saldo_awal','fam_budget_snapshot','fam_budget_periods','fam_members'].forEach(k=>{
+    total+=(localStorage.getItem(k)||'').length;
+  });
+  const el=document.getElementById('local-data-size');
+  if(el) el.textContent=(total/1024).toFixed(1)+' KB';
+}
+
 init();
-// Load saved client ID
-const savedClientId = localStorage.getItem('drive_client_id');
-if(savedClientId) document.getElementById('gapi-client-id').value = savedClientId;
-updateLocalDataSize();
 
 // ── Service Worker (PWA) ──
 if('serviceWorker' in navigator){
