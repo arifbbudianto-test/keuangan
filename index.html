@@ -229,7 +229,29 @@ textarea{resize:none;height:64px}
 <!-- BUDGETING -->
 <div id="sec-budget" class="section content">
   <div class="card">
-    <div class="card-title">Alokasi Budget per Kategori</div>
+    <div class="card-title-row">
+      <div class="card-title">Alokasi Budget</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="changeBudgetPeriod(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:14px;cursor:pointer;color:var(--text2)">‹</button>
+        <span id="budget-period-label" style="font-size:11px;font-family:var(--mono);color:var(--text2);white-space:nowrap"></span>
+        <button onclick="changeBudgetPeriod(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:14px;cursor:pointer;color:var(--text2)">›</button>
+      </div>
+    </div>
+    <!-- Total Budget Summary -->
+    <div id="budget-total-bar" style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:12px;color:var(--text2);font-weight:600">Total Alokasi Bulan Ini</span>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent)" id="budget-grand-total">Rp 0</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:11px;color:var(--text3)">Terpakai</span>
+        <span style="font-family:var(--mono);font-size:11px" id="budget-grand-spent">Rp 0</span>
+      </div>
+      <div style="height:7px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:4px">
+        <div id="budget-grand-bar" style="height:100%;border-radius:4px;transition:width 0.4s;background:var(--accent);width:0%"></div>
+      </div>
+      <div style="text-align:right;font-size:11px;font-weight:600" id="budget-grand-status"></div>
+    </div>
     <div id="budget-form"></div>
     <div class="add-cat-row">
       <button class="add-cat-emoji" id="emoji-btn" onclick="toggleEmojiPicker()">➕</button>
@@ -237,8 +259,8 @@ textarea{resize:none;height:64px}
       <button class="btn-add-cat" onclick="addCategory()">Tambah</button>
     </div>
     <div class="emoji-picker" id="emoji-picker"></div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px">* Budget per periode tgl 25 – 24</div>
-    <button class="btn-update-budget" onclick="updateBudgetSnapshot()">💾 Update Budget</button>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px">* Budget per periode tgl 25 – 24. Setiap periode bisa berbeda.</div>
+    <button class="btn-update-budget" onclick="updateBudgetSnapshot()">💾 Simpan Budget Periode Ini</button>
   </div>
 </div>
 
@@ -609,7 +631,9 @@ let debts=JSON.parse(localStorage.getItem('fam_debts')||'[]');
 let assets=JSON.parse(localStorage.getItem('fam_assets')||'[]');
 let saldoAwal=parseInt(localStorage.getItem('fam_saldo_awal')||'0');
 let budgetSnapshot=JSON.parse(localStorage.getItem('fam_budget_snapshot')||'null');
-let txType='pengeluaran', periodOffset=0, selectedEmoji='📌';
+// Budget per periode: key = "YYYY-MM" (tahun-bulan periode mulai)
+let budgetPerPeriod=JSON.parse(localStorage.getItem('fam_budget_periods')||'{}');
+let txType='pengeluaran', periodOffset=0, budgetPeriodOffset=0, selectedEmoji='📌';
 let catChart, flowChart;
 
 const sv=()=>localStorage.setItem('fam_txs',JSON.stringify(txs));
@@ -618,6 +642,49 @@ const svC=()=>localStorage.setItem('fam_cats',JSON.stringify(CATS_OUT));
 const svI=()=>localStorage.setItem('fam_inv',JSON.stringify(investments));
 const svD=()=>localStorage.setItem('fam_debts',JSON.stringify(debts));
 const svA=()=>localStorage.setItem('fam_assets',JSON.stringify(assets));
+const svBP=()=>localStorage.setItem('fam_budget_periods',JSON.stringify(budgetPerPeriod));
+
+// Key periode budget: format "2026-02" dari tanggal mulai periode
+function getBudgetPeriodKey(offset){
+  const {start}=getPeriod(offset);
+  return start.getFullYear()+'-'+String(start.getMonth()+1).padStart(2,'0');
+}
+
+function changeBudgetPeriod(d){
+  budgetPeriodOffset+=d;
+  if(budgetPeriodOffset>0) budgetPeriodOffset=0;
+  // Load budget untuk periode ini
+  const key=getBudgetPeriodKey(budgetPeriodOffset);
+  if(budgetPerPeriod[key]){
+    budgets=JSON.parse(JSON.stringify(budgetPerPeriod[key]));
+  } else {
+    // Kosongkan semua nilai (kategori tetap ada)
+    budgets={};
+  }
+  svB();
+  renderBudgetForm();
+  updateBudgetTotalBar();
+  document.getElementById('budget-period-label').textContent=periodLabel(budgetPeriodOffset);
+}
+
+function updateBudgetTotalBar(){
+  const key=getBudgetPeriodKey(budgetPeriodOffset);
+  const total=CATS_OUT.reduce((s,c)=>s+(budgets[c.name]||0),0);
+  const expenses=getFiltered(budgetPeriodOffset).filter(t=>t.type==='pengeluaran');
+  const spent=expenses.reduce((s,t)=>s+t.amount,0);
+  const pct=total>0?Math.min(100,Math.round(spent/total*100)):0;
+  const sisa=total-spent;
+  const over=sisa<0;
+  document.getElementById('budget-grand-total').textContent=fmt(total);
+  document.getElementById('budget-grand-spent').textContent=fmt(spent);
+  const bar=document.getElementById('budget-grand-bar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct>=100?'var(--red)':pct>=80?'#8A5A10':'var(--accent)';
+  const status=document.getElementById('budget-grand-status');
+  if(total===0){status.textContent='';return;}
+  status.textContent=over?'🔴 Over '+fmt(Math.abs(sisa)):'🟢 Sisa '+fmt(sisa)+' ('+( 100-pct)+'%)';
+  status.style.color=over?'var(--red)':'var(--green)';
+}
 
 function saveSaldoAwal(){
   const el=document.getElementById('saldo-awal-input');
@@ -629,17 +696,24 @@ function saveSaldoAwal(){
 }
 
 function updateBudgetSnapshot(){
+  const key=getBudgetPeriodKey(budgetPeriodOffset);
+  // Simpan budget untuk periode ini
+  budgetPerPeriod[key]=JSON.parse(JSON.stringify(budgets));
+  svBP(); svB();
+  // Update snapshot untuk Aktual
   budgetSnapshot={
     budgets: JSON.parse(JSON.stringify(budgets)),
     cats: JSON.parse(JSON.stringify(CATS_OUT)),
     savedAt: new Date().toISOString(),
-    period: periodLabel(periodOffset)
+    period: periodLabel(budgetPeriodOffset),
+    periodKey: key
   };
   localStorage.setItem('fam_budget_snapshot', JSON.stringify(budgetSnapshot));
+  updateBudgetTotalBar();
   const btn=document.querySelector('.btn-update-budget');
-  btn.textContent='✅ Budget Diupdate!';
+  btn.textContent='✅ Budget Tersimpan!';
   btn.style.background='var(--accent)';btn.style.color='white';
-  setTimeout(()=>{btn.textContent='💾 Update Budget';btn.style.background='var(--surface)';btn.style.color='var(--accent)';},2000);
+  setTimeout(()=>{btn.textContent='💾 Simpan Budget Periode Ini';btn.style.background='var(--surface)';btn.style.color='var(--accent)';},2000);
 }
 
 function renderAktual(){
@@ -784,11 +858,12 @@ function renderBudgetForm(){
         oninput="fmtBudget(this,'${c.name}')">
       <button class="budget-del" data-action="delCat" data-id="${i}">×</button>
     </div>`).join('');
+  updateBudgetTotalBar();
 }
 function fmtBudget(el,cat){
   const r=el.value.replace(/\./g,'').replace(/[^0-9]/g,'');const n=parseInt(r);
   if(!r){el.value='';budgets[cat]=0;}else{el.value=n.toLocaleString('id-ID');budgets[cat]=n;}
-  svB();renderBudgetProgress();
+  svB();updateBudgetTotalBar();
 }
 function delCat(i){
   const c=CATS_OUT[i];if(!confirm(`Hapus kategori "${c.name}"?`))return;
@@ -981,6 +1056,10 @@ function init(){
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('inv-date').value=new Date().toISOString().split('T')[0];
   if(saldoAwal) document.getElementById('saldo-awal-input').value=saldoAwal.toLocaleString('id-ID');
+  // Load budget periode saat ini
+  const key=getBudgetPeriodKey(0);
+  if(budgetPerPeriod[key]) budgets=JSON.parse(JSON.stringify(budgetPerPeriod[key]));
+  document.getElementById('budget-period-label').textContent=periodLabel(0);
   setType('pengeluaran');initEmoji();renderBudgetForm();
   updateHartaKat();renderInv();renderHutang();renderHarta();renderNW();render();
 }
