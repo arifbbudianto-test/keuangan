@@ -1,8 +1,10 @@
-const CACHE = 'keuangan-v1';
+const CACHE = 'keuangan-v2';
 const ASSETS = [
-  './keuangan-keluarga.html',
+  './index.html',
+  './manifest.json',
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
 
 // Install: cache semua asset
@@ -23,18 +25,30 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Fetch: cache-first untuk asset, network-first untuk API
+// Fetch: network-first untuk HTML, cache-first untuk aset statis
 self.addEventListener('fetch', e => {
   // Skip Google API calls
-  if (e.request.url.includes('googleapis.com') || 
+  if (e.request.url.includes('googleapis.com') ||
       e.request.url.includes('accounts.google.com')) return;
 
+  // Network-first untuk file utama (selalu ambil versi terbaru)
+  if (e.request.url.endsWith('/') || e.request.url.includes('index.html')) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Cache-first untuk aset lain
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(res => {
-        // Cache response baru
-        if (res && res.status === 200 && res.type === 'basic') {
+        if (res && res.status === 200) {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
