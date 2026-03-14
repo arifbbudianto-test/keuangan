@@ -64,12 +64,13 @@ textarea{resize:none;height:64px}
 .btn-submit:active{opacity:0.85}
 .btn-sm{padding:6px 11px;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
 .btn-sm:active{opacity:0.8}
-.budget-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.budget-row{display:flex;align-items:center;gap:6px;margin-bottom:7px}
 .budget-icon{font-size:15px;width:22px;text-align:center;flex-shrink:0}
 .budget-label{font-size:13px;font-weight:500;width:90px;min-width:90px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 .budget-input{font-family:var(--mono);font-size:12px;flex:1;min-width:0;padding:5px 9px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);text-align:right}
 .budget-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:17px;line-height:1;padding:0 2px;flex-shrink:0}
 .budget-del:hover{color:var(--red)}
+.budget-done{background:var(--accent);border:none;border-radius:6px;color:white;font-size:13px;font-weight:700;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1}
 .add-cat-row{display:flex;gap:7px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);align-items:center}
 .add-cat-emoji{font-size:18px;width:40px;padding:7px 5px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);text-align:center;cursor:pointer}
 .add-cat-name{flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);outline:none}
@@ -177,14 +178,28 @@ textarea{resize:none;height:64px}
           <option value="all">Semua</option><option>Ayah</option><option>Ibu</option><option>Anak</option>
         </select>
       </div>
+      <!-- AVG per day -->
+      <div style="display:flex;gap:8px;margin-top:7px">
+        <div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px">Avg Keluar/Hari</div>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--red)" id="avg-exp-day">Rp 0</div>
+        </div>
+        <div style="width:1px;background:var(--border);margin:2px 0"></div>
+        <div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px">Avg Masuk/Hari</div>
+          <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green)" id="avg-inc-day">Rp 0</div>
+        </div>
+      </div>
     </div>
     <!-- Gauge Chart -->
     <div style="flex-shrink:0;text-align:center;padding-left:8px">
       <canvas id="gauge-chart" width="110" height="64" style="display:block"></canvas>
-      <div style="font-size:11px;font-weight:700;font-family:var(--mono);margin-top:-4px;line-height:1" id="gauge-label">0%</div>
+      <div style="font-size:11px;font-weight:700;font-family:var(--mono);margin-top:6px;line-height:1" id="gauge-label">0%</div>
       <div style="font-size:9px;color:var(--text3);margin-top:2px">Keluar/Masuk</div>
     </div>
   </div>
+  <!-- Suggestion text -->
+  <div id="gauge-suggestion" style="font-size:11px;margin-top:6px;padding:6px 10px;border-radius:var(--radius-sm);display:none"></div>
 </div>
 
 <div class="metrics">
@@ -1198,11 +1213,38 @@ function drawGauge(pct){
   ctx.lineWidth=2.5;ctx.strokeStyle='#1A1814';ctx.lineCap='round';ctx.stroke();
   // Center dot
   ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fillStyle='#1A1814';ctx.fill();
-  // Label color
+  // Label & color
   const lbl=document.getElementById('gauge-label');
-  if(lbl){
-    lbl.textContent=pct+'%';
-    lbl.style.color=pct>=100?'var(--red)':pct>=80?'#D4830A':pct>=60?'#8A5A10':'var(--green)';
+  let color,suggestion,bg;
+  if(pct===0){
+    color='var(--text3)';suggestion='';bg='';
+  } else if(pct<=40){
+    color='var(--green)';bg='#E8F5EE';
+    suggestion='💚 Luar biasa! Pengeluaran sangat terkendali bulan ini.';
+  } else if(pct<=60){
+    color='var(--green)';bg='#E8F5EE';
+    suggestion='✅ Bagus! Keuangan bulan ini dalam kondisi sehat.';
+  } else if(pct<=80){
+    color='#8A5A10';bg='#FDF3E0';
+    suggestion='⚠️ Mulai hati-hati, pengeluaran sudah cukup besar bulan ini.';
+  } else if(pct<=100){
+    color='#D4830A';bg='#FDF3E0';
+    suggestion='🔶 Cukup boros bulan ini, harap lebih berhemat ke depannya.';
+  } else {
+    color='var(--red)';bg='#FAEAE7';
+    suggestion='🔴 Pengeluaran melebihi pemasukan! Segera evaluasi keuangan Anda.';
+  }
+  if(lbl){ lbl.textContent=pct+'%'; lbl.style.color=color; }
+  const sug=document.getElementById('gauge-suggestion');
+  if(sug){
+    if(suggestion){
+      sug.textContent=suggestion;
+      sug.style.display='block';
+      sug.style.background=bg;
+      sug.style.color=color;
+    } else {
+      sug.style.display='none';
+    }
   }
 }
 
@@ -1283,9 +1325,25 @@ function render(){
   document.getElementById('m-in').textContent=fmt(income);
   document.getElementById('m-out').textContent=fmt(expense);
   const bEl=document.getElementById('m-bal');bEl.textContent=fmt(bal);bEl.style.color=bal>=0?'var(--green)':'var(--red)';
+
   // Gauge
   const rasio=income>0?Math.round(expense/income*100):0;
   drawGauge(rasio);
+
+  // AVG per day
+  const {start,end}=getPeriod(periodOffset);
+  const totalDays=Math.round((end-start)/(1000*60*60*24))+1; // ~30 hari per periode
+  const today=new Date();
+  // Hari berjalan: dari awal periode sampai hari ini (atau akhir periode jika sudah lewat)
+  const effectiveEnd=today<end?today:end;
+  const daysPassed=Math.max(1,Math.round((effectiveEnd-start)/(1000*60*60*24))+1);
+  const avgExp=Math.round(expense/daysPassed);
+  const avgInc=Math.round(income/totalDays);
+  const avgExpEl=document.getElementById('avg-exp-day');
+  const avgIncEl=document.getElementById('avg-inc-day');
+  if(avgExpEl) avgExpEl.textContent=fmt(avgExp);
+  if(avgIncEl) avgIncEl.textContent=fmt(avgInc);
+
   // Period dropdown sync
   syncPeriodDropdown();
   const icons={};[...CATS_OUT,...CATS_IN].forEach(c=>icons[c.name]=c.icon);
@@ -1335,13 +1393,17 @@ function txItemHTML(t,icons){
   </div>`;
 }
 
+function dismissKeyboard(el){ el.blur(); }
+
 function renderBudgetForm(){
   document.getElementById('budget-form').innerHTML=CATS_OUT.map((c,i)=>`
     <div class="budget-row">
       <span class="budget-icon">${c.icon}</span><span class="budget-label">${c.name}</span>
       <input class="budget-input" type="text" inputmode="numeric" placeholder="0"
         value="${budgets[c.name]?Number(budgets[c.name]).toLocaleString('id-ID'):''}"
-        oninput="fmtBudget(this,'${c.name}')">
+        oninput="fmtBudget(this,'${c.name}')"
+        onkeydown="if(event.key==='Enter'||event.key==='Done'){this.blur();event.preventDefault();}">
+      <button class="budget-done" onclick="this.previousElementSibling.blur()" type="button">✓</button>
       <button class="budget-del" data-action="delCat" data-id="${i}">×</button>
     </div>`).join('');
   updateBudgetTotalBar();
