@@ -271,6 +271,10 @@ textarea{resize:none;height:64px}
         <button onclick="changeBudgetPeriod(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:14px;cursor:pointer;color:var(--text2)">›</button>
       </div>
     </div>
+    <!-- Copy last month button -->
+    <button onclick="copyLastMonthBudget()" style="width:100%;padding:9px;margin-bottom:12px;border:1px dashed var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text2);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+      📋 Copy Budget Rutin dari Periode Sebelumnya
+    </button>
 
     <!-- Total summary bar -->
     <div id="budget-total-bar" style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px">
@@ -1105,6 +1109,18 @@ function renderAktual(){
   const grandSisa=grandTotal-grandSpent;
   const grandPct=grandTotal>0?Math.min(100,Math.round(grandSpent/grandTotal*100)):0;
 
+  // Sort: merah (>=100%) → coklat (>=80%) → hijau (<80%), dalam grup sort by amount desc
+  const withPct=has.map(c=>{
+    const spent=expenses.filter(t=>t.cat===c.name).reduce((s,t)=>s+t.amount,0);
+    const b=snap.budgets[c.name]||0;
+    const pct=b>0?Math.min(999,Math.round(spent/b*100)):0;
+    return{...c,spent,b,pct};
+  }).sort((a,b)=>{
+    const grp=x=>x.pct>=100?0:x.pct>=80?1:2; // 0=merah,1=coklat,2=hijau
+    if(grp(a)!==grp(b)) return grp(a)-grp(b);
+    return b.pct-a.pct; // dalam grup: pct terbesar di atas
+  });
+
   el.innerHTML=`
     <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;margin-bottom:5px">
@@ -1119,19 +1135,17 @@ function renderAktual(){
         <span style="font-weight:600;color:${grandSisa>=0?'var(--green)':'var(--red)'}">${grandSisa>=0?'🟢 Sisa '+fmt(grandSisa):'🔴 Over '+fmt(Math.abs(grandSisa))}</span>
       </div>
     </div>
-  `+has.map(c=>{
+  `+withPct.map(c=>{
     const catTxs=expenses.filter(t=>t.cat===c.name);
-    const spent=catTxs.reduce((s,t)=>s+t.amount,0);
-    const b=snap.budgets[c.name]||0;
-    const pct=b>0?Math.min(100,Math.round(spent/b*100)):0;
-    const col=pct>=100?'#B83A2A':pct>=80?'#8A5A10':'#2A7A5A';
-    const sisa=b-spent;
+    const col=c.pct>=100?'#B83A2A':c.pct>=80?'#8A5A10':'#2A7A5A';
+    const sisa=c.b-c.spent;
+    const pctDisplay=Math.min(100,c.pct);
     return`<div class="progress-wrap aktual-item" onclick="showBudgetDetail('${c.name}')" style="cursor:pointer;padding:10px;border-radius:var(--radius-sm);transition:background 0.1s;margin-bottom:2px" onmousedown="this.style.background='var(--surface2)'" onmouseup="this.style.background=''" ontouchstart="this.style.background='var(--surface2)'" ontouchend="this.style.background=''">
       <div class="progress-header">
         <div class="progress-left">${c.icon} <strong>${c.name}</strong> <span style="font-size:10px;color:var(--text3)">(${catTxs.length} transaksi)</span></div>
-        <div class="progress-right">${fmt(spent)} / ${fmt(b)} · ${pct}%</div>
+        <div class="progress-right">${fmt(c.spent)} / ${fmt(c.b)} · ${c.pct}%</div>
       </div>
-      <div class="progress-bar" style="margin:5px 0"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="progress-bar" style="margin:5px 0"><div class="progress-fill" style="width:${pctDisplay}%;background:${col}"></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:10px;color:var(--text3)">Tap untuk lihat detail →</span>
         <span style="font-size:10px;font-weight:600;color:${sisa>=0?'var(--green)':'var(--red)'}">${sisa>=0?'Sisa: '+fmt(sisa):'Over: '+fmt(Math.abs(sisa))}</span>
@@ -1389,7 +1403,7 @@ function render(){
 
   // Sorting
   if(txSort==='date') list=[...list].sort((a,b)=>new Date(b.date)-new Date(a.date));
-  else if(txSort==='cat') list=[...list].sort((a,b)=>a.cat.localeCompare(b.cat));
+  else if(txSort==='cat') list=[...list].sort((a,b)=>a.cat.localeCompare(b.cat)||new Date(b.date)-new Date(a.date));
   else if(txSort==='amount') list=[...list].sort((a,b)=>b.amount-a.amount);
 
   const el=document.getElementById('tx-list');
@@ -1445,6 +1459,36 @@ function dismissKeyboard(el){ el.blur(); }
 function getBudgetPeriodKey(offset){
   const {start}=getPeriod(offset);
   return start.getFullYear()+'-'+String(start.getMonth()+1).padStart(2,'0');
+}
+
+function copyLastMonthBudget(){
+  const prevKey=getBudgetPeriodKey(budgetPeriodOffset-1);
+  const prevBudget=budgetPerPeriod[prevKey];
+  if(!prevBudget||!prevBudget.monthly||!prevBudget.monthly.length){
+    alert('Tidak ada budget rutin di periode sebelumnya ('+periodLabel(budgetPeriodOffset-1)+')');
+    return;
+  }
+  const cur=getCurrentPeriodBudget(budgetPeriodOffset);
+  if(cur.monthly.length>0){
+    if(!confirm('Budget rutin periode ini sudah ada. Tambahkan dari periode sebelumnya?\n(Kategori yang sudah ada tidak akan ditimpa)')) return;
+  }
+  let added=0;
+  prevBudget.monthly.forEach(c=>{
+    if(!cur.monthly.find(x=>x.name===c.name)){
+      cur.monthly.push({name:c.name,icon:c.icon,amount:c.amount});
+      added++;
+      // Tambah ke CATS_OUT global jika belum ada
+      if(!CATS_OUT.find(x=>x.name===c.name)){
+        CATS_OUT.push({name:c.name,icon:c.icon});svC();
+      }
+    }
+  });
+  svBP();setType(txType);renderBudgetForm();
+  const btn=document.querySelector('[onclick="copyLastMonthBudget()"]');
+  const orig=btn.innerHTML;
+  btn.innerHTML='✅ '+added+' kategori berhasil dicopy!';
+  btn.style.borderColor='var(--accent)';btn.style.color='var(--accent)';
+  setTimeout(()=>{btn.innerHTML=orig;btn.style.borderColor='var(--border)';btn.style.color='var(--text2)';},2500);
 }
 
 function getCurrentPeriodBudget(offset){
@@ -1777,7 +1821,11 @@ function renderCharts(){
         const budget=snap.budgets[c.name]||0;
         const pct=budget>0?Math.round(spent/budget*100):spent>0?999:0;
         return{name:c.name,icon:c.icon,spent,budget,pct};
-      }).sort((a,b)=>b.pct-a.pct); // descending → terbesar di atas, terkecil di bawah
+      }).sort((a,b)=>{
+        const grp=x=>x.pct>=100?0:x.pct>=80?1:2; // merah→coklat→hijau
+        if(grp(a)!==grp(b)) return grp(a)-grp(b);
+        return b.pct-a.pct; // dalam grup: % terbesar di atas
+      });
 
       const labels=data.map(d=>d.icon+' '+d.name);
       const spentVals=data.map(d=>d.spent);
