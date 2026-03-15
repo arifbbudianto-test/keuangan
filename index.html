@@ -1436,11 +1436,36 @@ function render(){
   else{
     // Kalau sort by kategori, tampilkan group header
     if(txSort==='cat'){
+      // Pre-calculate totals and budget status per category
+      const catTotals={};
+      list.forEach(t=>{ catTotals[t.cat]=(catTotals[t.cat]||0)+t.amount; });
+
+      // Get budget info from snapshot
+      const snap=budgetSnapshot;
+      const getBudgetStatus=(catName, total)=>{
+        if(!snap||!snap.budgets||!snap.budgets[catName]) return {color:'var(--text2)',bg:'var(--surface2)',label:''};
+        const b=snap.budgets[catName];
+        const pct=Math.round(total/b*100);
+        if(pct>=100) return {color:'#B83A2A',bg:'#FAEAE7',label:'Over '+pct+'%'};
+        if(pct>=80)  return {color:'#8A5A10',bg:'#FDF3E0',label:pct+'%'};
+        return {color:'#085041',bg:'#E8F5EE',label:'Sisa '+fmt(b-total)};
+      };
+
       let html='', lastCat='';
       list.forEach(t=>{
         if(t.cat!==lastCat){
           lastCat=t.cat;
-          html+=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);padding:8px 0 4px;border-top:1px solid var(--border);margin-top:2px">${icons[t.cat]||'📌'} ${t.cat}</div>`;
+          const total=catTotals[t.cat]||0;
+          const txCount=list.filter(x=>x.cat===t.cat).length;
+          const isExp=t.type==='pengeluaran';
+          const status=isExp?getBudgetStatus(t.cat,total):{color:'var(--text2)',bg:'var(--surface2)',label:''};
+          html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 5px;border-top:1px solid var(--border);margin-top:2px;background:${status.bg};border-radius:6px;padding:6px 8px;margin-bottom:2px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:${status.color}">${icons[t.cat]||'📌'} ${t.cat} <span style="font-weight:500;font-size:10px;opacity:0.7">(${txCount} transaksi)</span></div>
+            <div style="text-align:right">
+              <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${status.color}">${isExp?'-':'+'} ${fmt(total)}</div>
+              ${status.label?`<div style="font-size:9px;color:${status.color};opacity:0.85">${status.label}</div>`:''}
+            </div>
+          </div>`;
         }
         html+=txItemHTML(t,icons);
       });
@@ -1626,30 +1651,56 @@ function fmtBudgetNew(el,type,idx){
   if(!r){el.value='';}else{el.value=n.toLocaleString('id-ID');}
   const pb=getCurrentPeriodBudget(budgetPeriodOffset);
   pb[type][idx].amount=n;
-  svBP();updateBudgetTotalBar();
+  svBP();
+  updateBudgetTotalBar();
+  // Refresh pct badges tanpa re-render semua (cukup update pct spans)
+  const allCats=[...(pb.monthly||[]),...(pb.additional||[])];
+  const grandTotal=allCats.reduce((s,c)=>s+(c.amount||0),0);
+  ['monthly','additional'].forEach(t=>{
+    const cats=pb[t]||[];
+    const containerId=t==='monthly'?'budget-form-monthly':'budget-form-additional';
+    const rows=document.getElementById(containerId)?.querySelectorAll('.budget-row');
+    if(!rows)return;
+    cats.forEach((c,i)=>{
+      const pct=grandTotal>0&&c.amount?Math.round(c.amount/grandTotal*100):0;
+      const span=rows[i]?.querySelector('span[data-pct]')||rows[i]?.children[2];
+      if(span&&span.tagName==='SPAN'&&!span.classList.contains('budget-icon')&&!span.classList.contains('budget-label')){
+        span.textContent=pct>0?pct+'%':'';
+        span.style.background=pct>0?(t==='monthly'?'#E8F5EE':'#EEEDFE'):'transparent';
+      }
+    });
+  });
 }
 
 function renderBudgetCatList(type){
   const pb=getCurrentPeriodBudget(budgetPeriodOffset);
   const cats=pb[type]||[];
   const containerId=type==='monthly'?'budget-form-monthly':'budget-form-additional';
-  const accentColor=type==='monthly'?'#085041':'#3C3489';
   if(!cats.length){
     document.getElementById(containerId).innerHTML=
       `<div style="font-size:12px;color:var(--text3);padding:8px 0;text-align:center">Belum ada kategori. Tap "+ Kategori" untuk menambah.</div>`;
     return;
   }
-  document.getElementById(containerId).innerHTML=cats.map((c,i)=>`
-    <div class="budget-row">
+  // Hitung total semua budget (monthly + additional)
+  const allCats=[...(pb.monthly||[]),...(pb.additional||[])];
+  const grandTotal=allCats.reduce((s,c)=>s+(c.amount||0),0);
+
+  document.getElementById(containerId).innerHTML=cats.map((c,i)=>{
+    const pct=grandTotal>0&&c.amount?Math.round(c.amount/grandTotal*100):0;
+    const pctColor=type==='monthly'?'#085041':'#3C3489';
+    const pctBg=type==='monthly'?'#E8F5EE':'#EEEDFE';
+    return`<div class="budget-row">
       <span class="budget-icon">${c.icon}</span>
       <span class="budget-label">${c.name}</span>
+      ${pct>0?`<span style="font-size:10px;font-weight:700;color:${pctColor};background:${pctBg};padding:2px 6px;border-radius:10px;flex-shrink:0;min-width:32px;text-align:center">${pct}%</span>`:'<span style="min-width:32px"></span>'}
       <input class="budget-input" type="text" inputmode="numeric" placeholder="0"
         value="${c.amount?c.amount.toLocaleString('id-ID'):''}"
         oninput="fmtBudgetNew(this,'${type}',${i})"
         onkeydown="if(event.key==='Enter'){this.blur();event.preventDefault();}">
       <button class="budget-done" onclick="this.previousElementSibling.blur()" type="button">✓</button>
       <button class="budget-del" onclick="delBudgetCat('${type}',${i})">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderBudgetForm(){
