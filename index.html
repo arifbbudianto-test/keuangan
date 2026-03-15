@@ -1068,23 +1068,48 @@ function saveSaldoAwal(){
 
 function updateBudgetSnapshot(){
   const key=getBudgetPeriodKey(budgetPeriodOffset);
-  // Simpan budget untuk periode ini
-  budgetPerPeriod[key]=JSON.parse(JSON.stringify(budgets));
-  svBP(); svB();
-  // Update snapshot untuk Aktual
-  budgetSnapshot={
-    budgets: JSON.parse(JSON.stringify(budgets)),
-    cats: JSON.parse(JSON.stringify(CATS_OUT)),
+  const pb=getCurrentPeriodBudget(budgetPeriodOffset);
+
+  // Simpan budget per periode
+  svBP();
+
+  // Build flat budgets & cats dari struktur baru
+  const allCats=[
+    ...pb.monthly.map(c=>({...c,budgetType:'monthly'})),
+    ...pb.additional.map(c=>({...c,budgetType:'additional'}))
+  ];
+  const flatBudgets={};
+  allCats.forEach(c=>flatBudgets[c.name]=c.amount||0);
+
+  // Buat snapshot untuk periode ini
+  const thisSnapshot={
+    budgets: flatBudgets,
+    cats: allCats,
+    monthly: pb.monthly,
+    additional: pb.additional,
     savedAt: new Date().toISOString(),
     period: periodLabel(budgetPeriodOffset),
     periodKey: key
   };
-  localStorage.setItem('fam_budget_snapshot', JSON.stringify(budgetSnapshot));
+
+  // Simpan snapshot per-periode (terpisah dari global budgetSnapshot)
+  if(!budgetPerPeriod[key]) budgetPerPeriod[key]={monthly:[],additional:[]};
+  budgetPerPeriod[key]._snapshot=thisSnapshot;
+  svBP();
+
+  // Update global budgetSnapshot HANYA jika menyimpan periode yang sama dengan periodOffset (tab Aktual)
+  const currentPeriodKey=getBudgetPeriodKey(periodOffset);
+  if(key===currentPeriodKey){
+    budgetSnapshot=thisSnapshot;
+    localStorage.setItem('fam_budget_snapshot',JSON.stringify(budgetSnapshot));
+  }
+
   updateBudgetTotalBar();
   const btn=document.querySelector('.btn-update-budget');
-  btn.textContent='✅ Budget Tersimpan!';
+  const savedPeriod=periodLabel(budgetPeriodOffset);
+  btn.textContent='✅ Budget '+savedPeriod+' tersimpan!';
   btn.style.background='var(--accent)';btn.style.color='white';
-  setTimeout(()=>{btn.textContent='💾 Simpan Budget Periode Ini';btn.style.background='var(--surface)';btn.style.color='var(--accent)';},2000);
+  setTimeout(()=>{btn.textContent='💾 Simpan Budget Periode Ini';btn.style.background='var(--surface)';btn.style.color='var(--accent)';},2500);
 }
 
 function renderAktual(){
@@ -1109,7 +1134,7 @@ function renderAktual(){
   const grandSisa=grandTotal-grandSpent;
   const grandPct=grandTotal>0?Math.min(100,Math.round(grandSpent/grandTotal*100)):0;
 
-  // Sort: merah (>=100%) → coklat (>=80%) → hijau (<80%), dalam grup sort by amount desc
+  // Sort: merah (>=100%) → coklat (>=80%) → hijau (<80%), dalam grup sort by spent (amount) terbesar
   const withPct=has.map(c=>{
     const spent=expenses.filter(t=>t.cat===c.name).reduce((s,t)=>s+t.amount,0);
     const b=snap.budgets[c.name]||0;
@@ -1118,7 +1143,7 @@ function renderAktual(){
   }).sort((a,b)=>{
     const grp=x=>x.pct>=100?0:x.pct>=80?1:2; // 0=merah,1=coklat,2=hijau
     if(grp(a)!==grp(b)) return grp(a)-grp(b);
-    return b.pct-a.pct; // dalam grup: pct terbesar di atas
+    return b.spent-a.spent; // dalam grup: amount terbesar di atas
   });
 
   el.innerHTML=`
@@ -1468,6 +1493,12 @@ function copyLastMonthBudget(){
     alert('Tidak ada budget rutin di periode sebelumnya ('+periodLabel(budgetPeriodOffset-1)+')');
     return;
   }
+  const itemCount=prevBudget.monthly.length;
+  // Popup konfirmasi jika < 5 item
+  if(itemCount<5){
+    const names=prevBudget.monthly.map(c=>c.icon+' '+c.name+' ('+fmt(c.amount||0)+')').join('\n');
+    if(!confirm('⚠️ Budget rutin periode sebelumnya hanya '+itemCount+' kategori:\n\n'+names+'\n\nApakah tetap ingin di-copy?')) return;
+  }
   const cur=getCurrentPeriodBudget(budgetPeriodOffset);
   if(cur.monthly.length>0){
     if(!confirm('Budget rutin periode ini sudah ada. Tambahkan dari periode sebelumnya?\n(Kategori yang sudah ada tidak akan ditimpa)')) return;
@@ -1477,7 +1508,6 @@ function copyLastMonthBudget(){
     if(!cur.monthly.find(x=>x.name===c.name)){
       cur.monthly.push({name:c.name,icon:c.icon,amount:c.amount});
       added++;
-      // Tambah ke CATS_OUT global jika belum ada
       if(!CATS_OUT.find(x=>x.name===c.name)){
         CATS_OUT.push({name:c.name,icon:c.icon});svC();
       }
@@ -1639,29 +1669,6 @@ function delCat(i){
   delete budgets[c.name];CATS_OUT.splice(i,1);svC();svB();renderBudgetForm();setType(txType);
 }
 
-function updateBudgetSnapshot(){
-  const key=getBudgetPeriodKey(budgetPeriodOffset);
-  const pb=getCurrentPeriodBudget(budgetPeriodOffset);
-  svBP();
-  // Build flat budgets & cats for Aktual tab
-  const allCats=[...pb.monthly.map(c=>({...c,budgetType:'monthly'})),...pb.additional.map(c=>({...c,budgetType:'additional'}))];
-  const flatBudgets={};allCats.forEach(c=>flatBudgets[c.name]=c.amount||0);
-  budgetSnapshot={
-    budgets:flatBudgets,
-    cats:allCats,
-    monthly:pb.monthly,
-    additional:pb.additional,
-    savedAt:new Date().toISOString(),
-    period:periodLabel(budgetPeriodOffset),
-    periodKey:key
-  };
-  localStorage.setItem('fam_budget_snapshot',JSON.stringify(budgetSnapshot));
-  updateBudgetTotalBar();
-  const btn=document.querySelector('.btn-update-budget');
-  btn.textContent='✅ Budget Tersimpan!';
-  btn.style.background='var(--accent)';btn.style.color='white';
-  setTimeout(()=>{btn.textContent='💾 Simpan Budget Periode Ini';btn.style.background='var(--surface)';btn.style.color='var(--accent)';},2000);
-}
 
 function renderBudgetProgress(expenses){
   // No-op: moved to Aktual tab
@@ -1824,7 +1831,7 @@ function renderCharts(){
       }).sort((a,b)=>{
         const grp=x=>x.pct>=100?0:x.pct>=80?1:2; // merah→coklat→hijau
         if(grp(a)!==grp(b)) return grp(a)-grp(b);
-        return b.pct-a.pct; // dalam grup: % terbesar di atas
+        return b.spent-a.spent; // dalam grup: amount terbesar di atas
       });
 
       const labels=data.map(d=>d.icon+' '+d.name);
