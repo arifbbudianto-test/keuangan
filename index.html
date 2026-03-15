@@ -1445,10 +1445,12 @@ function render(){
       const getBudgetStatus=(catName, total)=>{
         if(!snap||!snap.budgets||!snap.budgets[catName]) return {color:'var(--text2)',bg:'var(--surface2)',label:''};
         const b=snap.budgets[catName];
+        const sisa=b-total;
+        if(sisa<0)  return {color:'#B83A2A',bg:'#FAEAE7',label:'Over '+fmt(Math.abs(sisa))};
+        if(sisa===0) return {color:'#8A5A10',bg:'#FDF3E0',label:'Sisa Rp 0'};
         const pct=Math.round(total/b*100);
-        if(pct>=100) return {color:'#B83A2A',bg:'#FAEAE7',label:'Over '+pct+'%'};
-        if(pct>=80)  return {color:'#8A5A10',bg:'#FDF3E0',label:pct+'%'};
-        return {color:'#085041',bg:'#E8F5EE',label:'Sisa '+fmt(b-total)};
+        if(pct>=80) return {color:'#8A5A10',bg:'#FDF3E0',label:'Sisa '+fmt(sisa)};
+        return {color:'#085041',bg:'#E8F5EE',label:'Sisa '+fmt(sisa)};
       };
 
       let html='', lastCat='';
