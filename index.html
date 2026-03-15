@@ -262,40 +262,78 @@ textarea{resize:none;height:64px}
 <!-- BUDGETING -->
 <div id="sec-budget" class="section content">
   <div class="card">
-    <div class="card-title-row">
-      <div class="card-title">Alokasi Budget</div>
+    <!-- Period navigator -->
+    <div class="card-title-row" style="margin-bottom:8px">
+      <div class="card-title">Budgeting</div>
       <div style="display:flex;align-items:center;gap:6px">
         <button onclick="changeBudgetPeriod(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:14px;cursor:pointer;color:var(--text2)">‹</button>
         <span id="budget-period-label" style="font-size:11px;font-family:var(--mono);color:var(--text2);white-space:nowrap"></span>
         <button onclick="changeBudgetPeriod(1)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:14px;cursor:pointer;color:var(--text2)">›</button>
       </div>
     </div>
-    <!-- Total Budget Summary -->
+
+    <!-- Total summary bar -->
     <div id="budget-total-bar" style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="font-size:12px;color:var(--text2);font-weight:600">Total Alokasi Bulan Ini</span>
+        <span style="font-size:12px;color:var(--text2);font-weight:600">Total Budget Periode Ini</span>
         <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent)" id="budget-grand-total">Rp 0</span>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:11px;color:var(--text3)">Terpakai</span>
-        <span style="font-family:var(--mono);font-size:11px" id="budget-grand-spent">Rp 0</span>
+      <div style="display:flex;gap:12px;margin-bottom:4px">
+        <span style="font-size:11px;color:var(--text3)">🔁 Rutin: <span id="budget-monthly-total" style="color:var(--text2);font-weight:600">Rp 0</span></span>
+        <span style="font-size:11px;color:var(--text3)">✨ Tambahan: <span id="budget-additional-total" style="color:var(--text2);font-weight:600">Rp 0</span></span>
       </div>
       <div style="height:7px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:4px">
         <div id="budget-grand-bar" style="height:100%;border-radius:4px;transition:width 0.4s;background:var(--accent);width:0%"></div>
       </div>
       <div style="text-align:right;font-size:11px;font-weight:600" id="budget-grand-status"></div>
     </div>
-    <div id="budget-form"></div>
-    <div class="add-cat-row">
-      <button class="add-cat-emoji" id="emoji-btn" onclick="toggleEmojiPicker()">➕</button>
-      <input class="add-cat-name" type="text" id="new-cat-name" placeholder="Nama kategori baru..." maxlength="30">
-      <button class="btn-add-cat" onclick="addCategory()">Tambah</button>
+
+    <!-- MONTHLY BUDGET -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--text2)">🔁 Budget Rutin (Monthly)</div>
+      <button onclick="addBudgetCat('monthly')" style="font-size:11px;padding:4px 10px;border:none;border-radius:var(--radius-sm);background:#E8F5EE;color:#085041;font-family:var(--font);font-weight:600;cursor:pointer">+ Kategori</button>
     </div>
-    <div class="emoji-picker" id="emoji-picker"></div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px">* Budget per periode tgl 25 – 24. Setiap periode bisa berbeda.</div>
+    <div id="budget-form-monthly"></div>
+    <!-- Inline add form for monthly -->
+    <div id="add-cat-monthly" style="display:none;background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:4px;border:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:600;color:#085041;margin-bottom:8px">➕ Tambah Kategori Rutin</div>
+      <div style="display:flex;gap:7px;align-items:center;margin-bottom:8px">
+        <button class="add-cat-emoji" id="emoji-btn-monthly" onclick="toggleEmojiPickerFor('monthly')">➕</button>
+        <input class="add-cat-name" type="text" id="new-cat-name-monthly" placeholder="Nama kategori..." maxlength="30" style="flex:1">
+      </div>
+      <div class="emoji-picker" id="emoji-picker-monthly"></div>
+      <div style="display:flex;gap:7px">
+        <button class="btn-add-cat" onclick="addBudgetCatConfirm('monthly')" style="flex:1">Tambah</button>
+        <button onclick="document.getElementById('add-cat-monthly').style.display='none'" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);font-family:var(--font);font-size:12px;cursor:pointer">Batal</button>
+      </div>
+    </div>
+
+    <div style="border-top:1px dashed var(--border);margin:14px 0"></div>
+
+    <!-- ADDITIONAL BUDGET -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--text2)">✨ Budget Tambahan (Additional)</div>
+      <button onclick="addBudgetCat('additional')" style="font-size:11px;padding:4px 10px;border:none;border-radius:var(--radius-sm);background:#EEEDFE;color:#3C3489;font-family:var(--font);font-weight:600;cursor:pointer">+ Kategori</button>
+    </div>
+    <div id="budget-form-additional"></div>
+    <!-- Inline add form for additional -->
+    <div id="add-cat-additional" style="display:none;background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:4px;border:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:600;color:#3C3489;margin-bottom:8px">➕ Tambah Kategori Tambahan</div>
+      <div style="display:flex;gap:7px;align-items:center;margin-bottom:8px">
+        <button class="add-cat-emoji" id="emoji-btn-additional" onclick="toggleEmojiPickerFor('additional')">➕</button>
+        <input class="add-cat-name" type="text" id="new-cat-name-additional" placeholder="Nama kategori..." maxlength="30" style="flex:1">
+      </div>
+      <div class="emoji-picker" id="emoji-picker-additional"></div>
+      <div style="display:flex;gap:7px">
+        <button class="btn-add-cat" onclick="addBudgetCatConfirm('additional')" style="flex:1">Tambah</button>
+        <button onclick="document.getElementById('add-cat-additional').style.display='none'" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);font-family:var(--font);font-size:12px;cursor:pointer">Batal</button>
+      </div>
+    </div>
+
+    <div style="font-size:11px;color:var(--text3);margin-top:10px">* Setiap periode memiliki budget & kategori independen. Navigasi ‹ › untuk planning ke depan.</div>
     <button class="btn-update-budget" onclick="updateBudgetSnapshot()">💾 Simpan Budget Periode Ini</button>
-  </div>
-</div>
+  </div><!-- end card -->
+</div><!-- end sec-budget -->
 
 <!-- AKTUAL & GRAFIK (digabung) -->
 <div id="sec-aktual" class="section content">
@@ -1107,7 +1145,8 @@ function showBudgetDetail(catName){
   const snap=budgetSnapshot;
   if(!snap) return;
   const cat=snap.cats.find(c=>c.name===catName);
-  const expenses=getFiltered(periodOffset).filter(t=>t.type==='pengeluaran'&&t.cat===catName);
+  const expenses=getFiltered(periodOffset).filter(t=>t.type==='pengeluaran'&&t.cat===catName)
+    .sort((a,b)=>new Date(b.date)-new Date(a.date));
   const b=snap.budgets[catName]||0;
   const spent=expenses.reduce((s,t)=>s+t.amount,0);
   const sisa=b-spent;
@@ -1395,19 +1434,157 @@ function txItemHTML(t,icons){
 
 function dismissKeyboard(el){ el.blur(); }
 
-function renderBudgetForm(){
-  document.getElementById('budget-form').innerHTML=CATS_OUT.map((c,i)=>`
+// ══════════════════════════════════════
+// BUDGET SYSTEM — Per-period independent
+// Structure: budgetPerPeriod[key] = {
+//   monthly:   [{name, icon, amount}],
+//   additional:[{name, icon, amount}]
+// }
+// ══════════════════════════════════════
+
+function getBudgetPeriodKey(offset){
+  const {start}=getPeriod(offset);
+  return start.getFullYear()+'-'+String(start.getMonth()+1).padStart(2,'0');
+}
+
+function getCurrentPeriodBudget(offset){
+  const key=getBudgetPeriodKey(offset);
+  if(!budgetPerPeriod[key]){
+    budgetPerPeriod[key]={monthly:[],additional:[]};
+  }
+  // Migrate lama jika perlu
+  if(!budgetPerPeriod[key].monthly) budgetPerPeriod[key]={monthly:[],additional:[]};
+  return budgetPerPeriod[key];
+}
+
+function changeBudgetPeriod(d){
+  budgetPeriodOffset+=d;
+  renderBudgetForm();
+  updateBudgetTotalBar();
+  document.getElementById('budget-period-label').textContent=periodLabel(budgetPeriodOffset);
+}
+
+function updateBudgetTotalBar(){
+  const pb=getCurrentPeriodBudget(budgetPeriodOffset);
+  const totalMonthly=pb.monthly.reduce((s,c)=>s+(c.amount||0),0);
+  const totalAdditional=pb.additional.reduce((s,c)=>s+(c.amount||0),0);
+  const total=totalMonthly+totalAdditional;
+  const expenses=getFiltered(budgetPeriodOffset).filter(t=>t.type==='pengeluaran');
+  const spent=expenses.reduce((s,t)=>s+t.amount,0);
+  const pct=total>0?Math.min(100,Math.round(spent/total*100)):0;
+  const sisa=total-spent;
+  document.getElementById('budget-grand-total').textContent=fmt(total);
+  document.getElementById('budget-monthly-total').textContent=fmt(totalMonthly);
+  document.getElementById('budget-additional-total').textContent=fmt(totalAdditional);
+  const bar=document.getElementById('budget-grand-bar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct>=100?'var(--red)':pct>=80?'#8A5A10':'var(--accent)';
+  const status=document.getElementById('budget-grand-status');
+  if(total===0){status.textContent='Belum ada budget tersimpan untuk periode ini';status.style.color='var(--text3)';return;}
+  status.textContent=sisa<0?'🔴 Over '+fmt(Math.abs(sisa)):'🟢 Sisa '+fmt(sisa)+' ('+fmt(spent)+' terpakai · '+(100-pct)+'%)';
+  status.style.color=sisa<0?'var(--red)':'var(--green)';
+}
+
+let addingCatType='monthly';
+const selectedEmojiByType={monthly:'📌',additional:'📌'};
+
+function addBudgetCat(type){
+  addingCatType=type;
+  // Tutup form lain dulu
+  const other=type==='monthly'?'additional':'monthly';
+  document.getElementById('add-cat-'+other).style.display='none';
+  const el=document.getElementById('add-cat-'+type);
+  el.style.display=el.style.display==='block'?'none':'block';
+  document.getElementById('new-cat-name-'+type).value='';
+  selectedEmojiByType[type]='📌';
+  document.getElementById('emoji-btn-'+type).textContent='➕';
+  document.getElementById('emoji-picker-'+type).classList.remove('open');
+}
+
+function toggleEmojiPickerFor(type){
+  document.getElementById('emoji-picker-'+type).classList.toggle('open');
+}
+
+function pickEmojiFor(type, e){
+  selectedEmojiByType[type]=e;
+  document.getElementById('emoji-btn-'+type).textContent=e;
+  document.getElementById('emoji-picker-'+type).classList.remove('open');
+}
+
+function addBudgetCatConfirm(type){
+  const name=document.getElementById('new-cat-name-'+type).value.trim();
+  if(!name){alert('Masukkan nama kategori');return;}
+  const pb=getCurrentPeriodBudget(budgetPeriodOffset);
+  const allCats=[...pb.monthly,...pb.additional];
+  if(allCats.find(c=>c.name.toLowerCase()===name.toLowerCase())){alert('Kategori sudah ada di periode ini');return;}
+  const icon=selectedEmojiByType[type]||'📌';
+  pb[type].push({name,icon,amount:0});
+  svBP();
+  document.getElementById('add-cat-'+type).style.display='none';
+  selectedEmojiByType[type]='📌';
+  renderBudgetForm();
+  // Tambah ke CATS_OUT global jika belum ada (untuk dropdown transaksi)
+  if(!CATS_OUT.find(c=>c.name===name)){
+    CATS_OUT.push({name,icon});svC();setType(txType);
+  }
+}
+
+function initEmoji(){
+  ['monthly','additional'].forEach(type=>{
+    const el=document.getElementById('emoji-picker-'+type);
+    if(el) el.innerHTML=EMOJI_LIST.map(e=>`<button class="emoji-opt" onclick="pickEmojiFor('${type}','${e}')">${e}</button>`).join('');
+  });
+}
+function toggleEmojiPicker(){} // legacy no-op
+function pickEmoji(e){} // legacy no-op
+
+function delBudgetCat(type,idx){
+  const pb=getCurrentPeriodBudget(budgetPeriodOffset);
+  const cat=pb[type][idx];
+  if(!confirm(`Hapus "${cat.name}" dari periode ini?`))return;
+  pb[type].splice(idx,1);
+  svBP();renderBudgetForm();updateBudgetTotalBar();
+}
+
+function fmtBudgetNew(el,type,idx){
+  const r=el.value.replace(/\./g,'').replace(/[^0-9]/g,'');
+  const n=parseInt(r)||0;
+  if(!r){el.value='';}else{el.value=n.toLocaleString('id-ID');}
+  const pb=getCurrentPeriodBudget(budgetPeriodOffset);
+  pb[type][idx].amount=n;
+  svBP();updateBudgetTotalBar();
+}
+
+function renderBudgetCatList(type){
+  const pb=getCurrentPeriodBudget(budgetPeriodOffset);
+  const cats=pb[type]||[];
+  const containerId=type==='monthly'?'budget-form-monthly':'budget-form-additional';
+  const accentColor=type==='monthly'?'#085041':'#3C3489';
+  if(!cats.length){
+    document.getElementById(containerId).innerHTML=
+      `<div style="font-size:12px;color:var(--text3);padding:8px 0;text-align:center">Belum ada kategori. Tap "+ Kategori" untuk menambah.</div>`;
+    return;
+  }
+  document.getElementById(containerId).innerHTML=cats.map((c,i)=>`
     <div class="budget-row">
-      <span class="budget-icon">${c.icon}</span><span class="budget-label">${c.name}</span>
+      <span class="budget-icon">${c.icon}</span>
+      <span class="budget-label">${c.name}</span>
       <input class="budget-input" type="text" inputmode="numeric" placeholder="0"
-        value="${budgets[c.name]?Number(budgets[c.name]).toLocaleString('id-ID'):''}"
-        oninput="fmtBudget(this,'${c.name}')"
-        onkeydown="if(event.key==='Enter'||event.key==='Done'){this.blur();event.preventDefault();}">
+        value="${c.amount?c.amount.toLocaleString('id-ID'):''}"
+        oninput="fmtBudgetNew(this,'${type}',${i})"
+        onkeydown="if(event.key==='Enter'){this.blur();event.preventDefault();}">
       <button class="budget-done" onclick="this.previousElementSibling.blur()" type="button">✓</button>
-      <button class="budget-del" data-action="delCat" data-id="${i}">×</button>
+      <button class="budget-del" onclick="delBudgetCat('${type}',${i})">×</button>
     </div>`).join('');
+}
+
+function renderBudgetForm(){
+  renderBudgetCatList('monthly');
+  renderBudgetCatList('additional');
   updateBudgetTotalBar();
 }
+
+// Legacy fmtBudget (kept for compatibility)
 function fmtBudget(el,cat){
   const r=el.value.replace(/\./g,'').replace(/[^0-9]/g,'');const n=parseInt(r);
   if(!r){el.value='';budgets[cat]=0;}else{el.value=n.toLocaleString('id-ID');budgets[cat]=n;}
@@ -1415,34 +1592,38 @@ function fmtBudget(el,cat){
 }
 function delCat(i){
   const c=CATS_OUT[i];if(!confirm(`Hapus kategori "${c.name}"?`))return;
-  delete budgets[c.name];CATS_OUT.splice(i,1);svC();svB();renderBudgetForm();renderBudgetProgress();setType(txType);
+  delete budgets[c.name];CATS_OUT.splice(i,1);svC();svB();renderBudgetForm();setType(txType);
 }
-function initEmoji(){document.getElementById('emoji-picker').innerHTML=EMOJI_LIST.map(e=>`<button class="emoji-opt" onclick="pickEmoji('${e}')">${e}</button>`).join('');}
-function toggleEmojiPicker(){document.getElementById('emoji-picker').classList.toggle('open');}
-function pickEmoji(e){selectedEmoji=e;document.getElementById('emoji-btn').textContent=e;document.getElementById('emoji-picker').classList.remove('open');}
-function addCategory(){
-  const el=document.getElementById('new-cat-name');const name=el.value.trim();
-  if(!name){alert('Masukkan nama');return;}
-  if(CATS_OUT.find(c=>c.name.toLowerCase()===name.toLowerCase())){alert('Sudah ada');return;}
-  CATS_OUT.push({name,icon:selectedEmoji});svC();el.value='';selectedEmoji='📌';
-  document.getElementById('emoji-btn').textContent='➕';renderBudgetForm();setType(txType);
+
+function updateBudgetSnapshot(){
+  const key=getBudgetPeriodKey(budgetPeriodOffset);
+  const pb=getCurrentPeriodBudget(budgetPeriodOffset);
+  svBP();
+  // Build flat budgets & cats for Aktual tab
+  const allCats=[...pb.monthly.map(c=>({...c,budgetType:'monthly'})),...pb.additional.map(c=>({...c,budgetType:'additional'}))];
+  const flatBudgets={};allCats.forEach(c=>flatBudgets[c.name]=c.amount||0);
+  budgetSnapshot={
+    budgets:flatBudgets,
+    cats:allCats,
+    monthly:pb.monthly,
+    additional:pb.additional,
+    savedAt:new Date().toISOString(),
+    period:periodLabel(budgetPeriodOffset),
+    periodKey:key
+  };
+  localStorage.setItem('fam_budget_snapshot',JSON.stringify(budgetSnapshot));
+  updateBudgetTotalBar();
+  const btn=document.querySelector('.btn-update-budget');
+  btn.textContent='✅ Budget Tersimpan!';
+  btn.style.background='var(--accent)';btn.style.color='white';
+  setTimeout(()=>{btn.textContent='💾 Simpan Budget Periode Ini';btn.style.background='var(--surface)';btn.style.color='var(--accent)';},2000);
 }
+
 function renderBudgetProgress(expenses){
-  if(!expenses)expenses=getFiltered(periodOffset).filter(t=>t.type==='pengeluaran');
-  const has=CATS_OUT.filter(c=>budgets[c.name]>0);
-  const el=document.getElementById('budget-progress');
-  if(!has.length){el.innerHTML='<div class="empty">Belum ada budget</div>';return;}
-  el.innerHTML=has.map(c=>{
-    const spent=expenses.filter(t=>t.cat===c.name).reduce((s,t)=>s+t.amount,0);
-    const b=budgets[c.name]||0;const pct=b>0?Math.min(100,Math.round(spent/b*100)):0;
-    const col=pct>=100?'#B83A2A':pct>=80?'#8A5A10':'#2A7A5A';
-    return`<div class="progress-wrap">
-      <div class="progress-header"><div class="progress-left">${c.icon} ${c.name}</div>
-        <div class="progress-right">${fmt(spent)} / ${fmt(b)} · ${pct}%</div></div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div>
-    </div>`;
-  }).join('');
+  // No-op: moved to Aktual tab
 }
+
+
 
 // KAS VIRTUAL — saldo awal + semua transaksi
 function getKasVirtual(){
@@ -1596,16 +1777,15 @@ function renderCharts(){
         const budget=snap.budgets[c.name]||0;
         const pct=budget>0?Math.round(spent/budget*100):spent>0?999:0;
         return{name:c.name,icon:c.icon,spent,budget,pct};
-      }).sort((a,b)=>a.pct-b.pct); // ascending → terbesar di atas
+      }).sort((a,b)=>b.pct-a.pct); // descending → terbesar di atas, terkecil di bawah
 
       const labels=data.map(d=>d.icon+' '+d.name);
       const spentVals=data.map(d=>d.spent);
       const budgetVals=data.map(d=>d.budget||0);
       const barColors=data.map(d=>d.pct>=100?'rgba(184,58,42,0.85)':d.pct>=80?'rgba(138,90,16,0.8)':'rgba(42,122,90,0.8)');
-      const budgetColors=data.map(()=>'rgba(180,180,180,0.35)');
 
       // Tinggi dinamis sesuai jumlah kategori
-      const barH=Math.max(200, data.length*36);
+      const barH=Math.max(200, data.length*40);
       container.style.height=barH+'px';
       container.innerHTML='<canvas id="hbar-chart"></canvas>';
 
@@ -1625,6 +1805,7 @@ function renderCharts(){
         options:{
           indexAxis:'y',
           responsive:true,maintainAspectRatio:false,
+          layout:{padding:{left:0}},
           plugins:{
             legend:{display:false},
             tooltip:{callbacks:{
@@ -1646,7 +1827,16 @@ function renderCharts(){
           },
           scales:{
             x:{ticks:{font:{size:9},callback:v=>fmtAxis(v)},grid:{color:'#E2DDD5'}},
-            y:{ticks:{font:{size:10}},grid:{display:false}}
+            y:{
+              ticks:{
+                font:{size:10},
+                crossAlign:'near',   // rata kiri
+                mirror:false,
+                padding:4
+              },
+              grid:{display:false},
+              position:'left'
+            }
           }
         }
       });
@@ -1749,8 +1939,6 @@ function init(){
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('inv-date').value=new Date().toISOString().split('T')[0];
   if(saldoAwal) document.getElementById('saldo-awal-input').value=saldoAwal.toLocaleString('id-ID');
-  const key=getBudgetPeriodKey(0);
-  if(budgetPerPeriod[key]) budgets=JSON.parse(JSON.stringify(budgetPerPeriod[key]));
   document.getElementById('budget-period-label').textContent=periodLabel(0);
   renderMemberSetting();
   initPeriodDropdown();
