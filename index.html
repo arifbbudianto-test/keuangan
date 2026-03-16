@@ -168,7 +168,7 @@ textarea{resize:none;height:64px}
 
 <div class="header" id="main-header">
   <div class="header-top">
-    <div style="flex:1;min-width:0">
+    <div style="flex:0 0 auto;min-width:0">
       <h1>💰 Keuangan Keluarga</h1>
       <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
         <select id="period-dropdown" onchange="setPeriodFromDropdown(this.value)"
@@ -193,14 +193,18 @@ textarea{resize:none;height:64px}
       </div>
     </div>
     <!-- Trophy emoji di tengah - dinamis 50% ruang -->
-    <div id="trophy-container" style="flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0 8px;min-width:0">
+    <div id="trophy-container" style="flex:1;display:flex;align-items:center;justify-content:center;min-width:0">
       <span id="header-emoji" style="font-size:57px;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.2));transition:transform 0.3s ease,font-size 0.3s ease;display:block">💰</span>
     </div>
-    <!-- Gauge Chart -->
+    <!-- Donut Ring -->
     <div style="flex-shrink:0;text-align:center">
-      <canvas id="gauge-chart" width="110" height="64" style="display:block"></canvas>
-      <div style="font-size:11px;font-weight:700;font-family:var(--mono);margin-top:6px;line-height:1" id="gauge-label">0%</div>
-      <div style="font-size:9px;color:var(--text3);margin-top:2px">Keluar/Masuk</div>
+      <div style="position:relative;width:72px;height:72px">
+        <canvas id="gauge-chart" width="72" height="72" style="display:block"></canvas>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-size:13px;font-weight:700;font-family:var(--mono);line-height:1" id="gauge-label">0%</div>
+        </div>
+      </div>
+      <div style="font-size:9px;color:var(--text3);margin-top:3px">Keluar/Masuk</div>
     </div>
   </div>
   <!-- Suggestion text -->
@@ -1341,72 +1345,78 @@ function drawGauge(pct){
   const canvas=document.getElementById('gauge-chart');
   if(!canvas)return;
   const ctx=canvas.getContext('2d');
-  const W=canvas.width,H=canvas.height;
+  const W=canvas.width, H=canvas.height;
   ctx.clearRect(0,0,W,H);
-  const cx=W/2, cy=H-6, r=H-14;
-  // Background track
-  ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,2*Math.PI);
-  ctx.lineWidth=12;ctx.strokeStyle='#E2DDD5';ctx.lineCap='round';ctx.stroke();
-  // Color segments
-  const segs=[
-    {from:0,to:60,color:'#2A7A5A'},
-    {from:60,to:80,color:'#8A5A10'},
-    {from:80,to:100,color:'#D4830A'},
-    {from:100,to:120,color:'#B83A2A'}
-  ];
-  segs.forEach(s=>{
-    ctx.beginPath();
-    ctx.arc(cx,cy,r,Math.PI+(s.from/120)*Math.PI,Math.PI+(Math.min(s.to,120)/120)*Math.PI);
-    ctx.lineWidth=12;ctx.strokeStyle=s.color;ctx.lineCap='butt';ctx.stroke();
-  });
-  // Needle
+  const cx=W/2, cy=H/2, r=W/2-7, lw=9;
   const clamped=Math.min(pct,120);
-  const angle=Math.PI+(clamped/120)*Math.PI;
-  ctx.beginPath();
-  ctx.moveTo(cx,cy);
-  ctx.lineTo(cx+Math.cos(angle)*(r-3), cy+Math.sin(angle)*(r-3));
-  ctx.lineWidth=2.5;ctx.strokeStyle='#1A1814';ctx.lineCap='round';ctx.stroke();
-  // Center dot
-  ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fillStyle='#1A1814';ctx.fill();
-  // Label & color
-  const lbl=document.getElementById('gauge-label');
-  let color,suggestion,bg,emoji;
+
+  // Color based on pct
+  let ringColor, color, suggestion, bg, emoji;
   if(pct===0){
-    color='var(--text3)';suggestion='';bg='';emoji='🪙';
+    ringColor='#E2DDD5'; color='var(--text3)'; suggestion=''; bg=''; emoji='🪙';
   } else if(pct<=40){
-    color='var(--green)';bg='#E8F5EE';emoji='🏆';
+    ringColor='#2A7A5A'; color='var(--green)'; bg='#E8F5EE'; emoji='🏆';
     suggestion='🏆 Luar biasa! Pengeluaran sangat terkendali bulan ini.';
   } else if(pct<=60){
-    color='var(--green)';bg='#E8F5EE';emoji='🥇';
+    ringColor='#2A7A5A'; color='var(--green)'; bg='#E8F5EE'; emoji='🥇';
     suggestion='🥇 Bagus! Keuangan bulan ini dalam kondisi sehat.';
   } else if(pct<=80){
-    color='#8A5A10';bg='#FDF3E0';emoji='🥈';
+    ringColor='#8A5A10'; color='#8A5A10'; bg='#FDF3E0'; emoji='🥈';
     suggestion='⚠️ Mulai hati-hati, pengeluaran sudah cukup besar bulan ini.';
   } else if(pct<=100){
-    color='#D4830A';bg='#FDF3E0';emoji='🥉';
+    ringColor='#D4830A'; color='#D4830A'; bg='#FDF3E0'; emoji='🥉';
     suggestion='🔶 Cukup boros bulan ini, harap lebih berhemat ke depannya.';
   } else {
-    color='var(--red)';bg='#FAEAE7';emoji='🪵';
+    ringColor='#B83A2A'; color='var(--red)'; bg='#FAEAE7'; emoji='🪵';
     suggestion='🔴 Pengeluaran melebihi pemasukan! Segera evaluasi keuangan Anda.';
   }
+
+  // Background track (full circle)
+  ctx.beginPath();
+  ctx.arc(cx,cy,r,0,2*Math.PI);
+  ctx.lineWidth=lw;
+  ctx.strokeStyle='#E2DDD5';
+  ctx.stroke();
+
+  // Filled arc — clockwise from top (-π/2), fill = pct/100 of full circle (max 100%)
+  const fillRatio=Math.min(clamped,100)/100;
+  if(fillRatio>0){
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+fillRatio*2*Math.PI);
+    ctx.lineWidth=lw;
+    ctx.strokeStyle=ringColor;
+    ctx.lineCap='round';
+    ctx.stroke();
+  }
+
+  // Over 100% — second ring on top, thinner, red dashed feel
+  if(pct>100){
+    const overRatio=Math.min((pct-100),20)/20;
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+overRatio*2*Math.PI);
+    ctx.lineWidth=lw+2;
+    ctx.strokeStyle='rgba(184,58,42,0.35)';
+    ctx.lineCap='round';
+    ctx.stroke();
+  }
+
+  // Label
+  const lbl=document.getElementById('gauge-label');
   if(lbl){ lbl.textContent=pct+'%'; lbl.style.color=color; }
-  // Update header emoji (di tengah, besar)
+
+  // Update header emoji
   const headerEmoji=document.getElementById('header-emoji');
   if(headerEmoji){
     headerEmoji.textContent=emoji;
     headerEmoji.style.transform='scale(1.2)';
     setTimeout(()=>{ headerEmoji.style.transform='scale(1)'; sizeTrophy(); },300);
   }
+
+  // Suggestion
   const sug=document.getElementById('gauge-suggestion');
   if(sug){
-    if(suggestion){
-      sug.textContent=suggestion;
-      sug.style.display='block';
-      sug.style.background=bg;
-      sug.style.color=color;
-    } else {
-      sug.style.display='none';
-    }
+    if(suggestion){ sug.textContent=suggestion; sug.style.display='block'; sug.style.background=bg; sug.style.color=color; }
+    else { sug.style.display='none'; }
   }
 }
 
@@ -1589,17 +1599,18 @@ function sizeTrophy(){
   const titleEl=document.querySelector('#main-header h1');
   if(!header||!trophy||!gauge||!titleEl) return;
 
-  const headerW=header.offsetWidth;
-  const titleRight=titleEl.getBoundingClientRect().right - header.getBoundingClientRect().left;
-  const gaugeLeft=gauge.getBoundingClientRect().left - header.getBoundingClientRect().left;
-  const gap=gaugeLeft - titleRight; // total ruang kosong di tengah
+  const headerRect=header.getBoundingClientRect();
+  const titleRight=titleEl.getBoundingClientRect().right - headerRect.left;
+  const gaugeLeft=gauge.getBoundingClientRect().left - headerRect.left;
+  const gap=gaugeLeft - titleRight;
 
   if(gap>20){
-    // Emoji occupies 50% of gap → 25% padding each side
-    const emojiSize=Math.min(Math.max(gap*0.5, 42), 78);
+    const emojiSize=Math.min(Math.max(gap*0.65, 42), 78);
     const emojiEl=document.getElementById('header-emoji');
     if(emojiEl) emojiEl.style.fontSize=Math.round(emojiSize)+'px';
-    trophy.style.width=gap+'px';
+    // Jangan set width ke gap — biarkan flexbox handle centering
+    trophy.style.width='auto';
+    trophy.style.flex='1';
   }
 }
 
