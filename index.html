@@ -194,17 +194,16 @@ textarea{resize:none;height:64px}
     </div>
     <!-- Trophy emoji di tengah - dinamis 50% ruang -->
     <div id="trophy-container" style="flex:1;display:flex;align-items:center;justify-content:center;min-width:0">
-      <span id="header-emoji" style="font-size:57px;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.2));transition:transform 0.3s ease,font-size 0.3s ease;display:block">💰</span>
+      <span id="header-emoji" style="font-size:56px;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.2));transition:transform 0.3s ease,font-size 0.3s ease;display:block">💰</span>
     </div>
     <!-- Donut Ring -->
     <div style="flex-shrink:0;text-align:center">
-      <div style="position:relative;width:72px;height:72px">
-        <canvas id="gauge-chart" width="72" height="72" style="display:block"></canvas>
+      <div style="position:relative;width:88px;height:88px">
+        <canvas id="gauge-chart" width="88" height="88" style="display:block"></canvas>
         <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div style="font-size:13px;font-weight:700;font-family:var(--mono);line-height:1" id="gauge-label">0%</div>
+          <div style="font-size:14px;font-weight:700;font-family:var(--mono);line-height:1" id="gauge-label">0%</div>
         </div>
       </div>
-      <div style="font-size:9px;color:var(--text3);margin-top:3px">Keluar/Masuk</div>
     </div>
   </div>
   <!-- Suggestion text -->
@@ -1605,7 +1604,7 @@ function sizeTrophy(){
   const gap=gaugeLeft - titleRight;
 
   if(gap>20){
-    const emojiSize=Math.min(Math.max(gap*0.65, 42), 78);
+    const emojiSize=Math.min(Math.max(gap*0.65, 42), 70);
     const emojiEl=document.getElementById('header-emoji');
     if(emojiEl) emojiEl.style.fontSize=Math.round(emojiSize)+'px';
     // Jangan set width ke gap — biarkan flexbox handle centering
