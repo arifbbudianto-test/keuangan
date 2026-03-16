@@ -194,7 +194,7 @@ textarea{resize:none;height:64px}
     </div>
     <!-- Trophy emoji di tengah - dinamis 50% ruang -->
     <div id="trophy-container" style="flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0 8px;min-width:0">
-      <span id="header-emoji" style="font-size:44px;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.2));transition:transform 0.3s ease,font-size 0.3s ease;display:block">💰</span>
+      <span id="header-emoji" style="font-size:57px;line-height:1;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.2));transition:transform 0.3s ease,font-size 0.3s ease;display:block">💰</span>
     </div>
     <!-- Gauge Chart -->
     <div style="flex-shrink:0;text-align:center">
@@ -1596,7 +1596,7 @@ function sizeTrophy(){
 
   if(gap>20){
     // Emoji occupies 50% of gap → 25% padding each side
-    const emojiSize=Math.min(Math.max(gap*0.5, 32), 60);
+    const emojiSize=Math.min(Math.max(gap*0.5, 42), 78);
     const emojiEl=document.getElementById('header-emoji');
     if(emojiEl) emojiEl.style.fontSize=Math.round(emojiSize)+'px';
     trophy.style.width=gap+'px';
