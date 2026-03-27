@@ -1484,11 +1484,15 @@ function setType(t){
   const editBtn=document.getElementById('edit-cat-in-btn');
   const importBtn=document.getElementById('import-sisa-btn');
   if(editBtn) editBtn.style.display=t==='pemasukan'?'inline':'none';
-  if(t==='pemasukan'&&importBtn){
-    const today=new Date().getDate();
-    importBtn.style.display=(today>=24&&today<=26)?'block':'none';
-  } else if(importBtn){
-    importBtn.style.display='none';
+  if(importBtn){
+    if(t==='pemasukan'){
+      // Tampilkan selalu saat pemasukan — cek ada tidaknya sisa budget bulan lalu
+      const prevKey=getBudgetPeriodKey(periodOffset-1);
+      const prevSnap=budgetPerPeriod[prevKey]?._snapshot;
+      importBtn.style.display=prevSnap?'block':'none';
+    } else {
+      importBtn.style.display='none';
+    }
   }
   // Hide edit panel when switching to pengeluaran
   if(t==='pengeluaran'){
@@ -1676,7 +1680,6 @@ function importSisaBudget(){
   if(!confirm('Import sisa budget '+fmt(sisa)+' dari periode '+prevSnap.period+' sebagai pemasukan?')) return;
   document.getElementById('f-amount').value=sisa.toLocaleString('id-ID');
   document.getElementById('f-note').value='Sisa budget '+prevSnap.period;
-  document.getElementById('import-sisa-btn').style.display='none';
 }
 
 // ── KATEGORI PEMASUKAN ──
@@ -2279,6 +2282,7 @@ function switchTab(name){
   if(header) header.style.display=showHeader?'block':'none';
   if(metrics) metrics.style.display=showHeader?'grid':'none';
   if(name==='aktual'){ renderAktual(); if(aktualView==='grafik') setTimeout(renderCharts,80); }
+  if(name==='tambah'){ setType(txType); } // refresh kategori & import btn sesuai periode aktif
   if(name==='pengaturan'){
     updateLocalDataSize();
     renderMemberSetting();
