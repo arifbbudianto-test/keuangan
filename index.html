@@ -242,6 +242,14 @@ textarea{resize:none;height:64px}
       <button class="type-btn active-out" id="btn-out" onclick="setType('pengeluaran')">− Pengeluaran</button>
       <button class="type-btn" id="btn-in" onclick="setType('pemasukan')">+ Pemasukan</button>
     </div>
+
+    <!-- Import sisa budget (muncul di pemasukan sekitar tgl 25) -->
+    <div id="import-sisa-btn" style="display:none;margin-bottom:10px">
+      <button onclick="importSisaBudget()" style="width:100%;padding:10px;border:1px dashed var(--accent);border-radius:var(--radius-sm);background:#E8F5EE;color:#085041;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer">
+        💰 Import Sisa Budget Bulan Lalu ke Pemasukan
+      </button>
+    </div>
+
     <div class="form-row">
       <div class="form-group"><label>Jumlah (Rp)</label>
         <input type="text" id="f-amount" placeholder="0" inputmode="numeric" oninput="fmtInput(this)"></div>
@@ -249,9 +257,28 @@ textarea{resize:none;height:64px}
         <select id="f-member"><option>Ayah</option><option>Ibu</option><option>Anak</option></select></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Kategori</label><select id="f-cat" onchange="onCatChange()"></select></div>
+      <div class="form-group">
+        <label style="display:flex;justify-content:space-between;align-items:center">
+          Kategori
+          <span id="edit-cat-in-btn" style="display:none;font-size:10px;color:var(--accent);cursor:pointer;font-weight:600" onclick="toggleEditCatsIn()">✏️ Edit</span>
+        </label>
+        <select id="f-cat" onchange="onCatChange()"></select>
+      </div>
       <div class="form-group"><label>Tanggal</label><input type="date" id="f-date"></div>
     </div>
+
+    <!-- Edit kategori pemasukan -->
+    <div id="edit-cats-in-panel" style="display:none;background:var(--surface2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px;border:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">Kelola Kategori Pemasukan</div>
+      <div id="cats-in-list"></div>
+      <div style="display:flex;gap:7px;margin-top:8px">
+        <button class="add-cat-emoji" id="emoji-btn-in" onclick="toggleEmojiPickerFor('in')">➕</button>
+        <input class="add-cat-name" type="text" id="new-cat-in-name" placeholder="Nama kategori baru..." maxlength="30" style="flex:1">
+        <button class="btn-add-cat" onclick="addCatIn()">Tambah</button>
+      </div>
+      <div class="emoji-picker" id="emoji-picker-in"></div>
+    </div>
+
     <!-- Extra fields muncul saat kategori = Investasi -->
     <div id="inv-extra" style="display:none;background:var(--surface2);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px;border:1px solid var(--border)">
       <div style="font-size:11px;font-weight:600;color:var(--purple);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">📈 Detail Investasi — otomatis masuk portofolio</div>
@@ -936,7 +963,7 @@ textarea{resize:none;height:64px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const DEFAULT_CATS_OUT=[{name:'Makanan',icon:'🍽'},{name:'Transportasi',icon:'🚗'},{name:'Belanja',icon:'🛒'},{name:'Kesehatan',icon:'💊'},{name:'Pendidikan',icon:'📚'},{name:'Tagihan',icon:'💡'},{name:'Hiburan',icon:'🎬'},{name:'Lainnya',icon:'📌'}];
-const CATS_IN=[{name:'Gaji',icon:'💰'},{name:'Bonus',icon:'🎁'},{name:'Usaha',icon:'🏪'},{name:'Investasi',icon:'📈'},{name:'Lainnya',icon:'📌'}];
+const DEFAULT_CATS_IN=[{name:'Gaji',icon:'💰'},{name:'Bonus',icon:'🎁'},{name:'Usaha',icon:'🏪'},{name:'Investasi',icon:'📈'},{name:'Lainnya',icon:'📌'}];
 const HARTA_BERGERAK=['Kendaraan','Elektronik','Perhiasan','Perabot','Lainnya'];
 const HARTA_TIDAK=['Rumah','Tanah','Ruko','Apartemen','Lainnya'];
 const HARTA_EMAS=['Emas Batangan','Perhiasan Emas','Koin Emas','Lainnya'];
@@ -969,12 +996,12 @@ const CAT_COLORS={'Makanan':'#2A7A5A','Transportasi':'#378ADD','Belanja':'#D85A3
 let txs=JSON.parse(localStorage.getItem('fam_txs')||'[]');
 let budgets=JSON.parse(localStorage.getItem('fam_budgets')||'{}');
 let CATS_OUT=JSON.parse(localStorage.getItem('fam_cats')||JSON.stringify(DEFAULT_CATS_OUT));
+let CATS_IN=JSON.parse(localStorage.getItem('fam_cats_in')||JSON.stringify(DEFAULT_CATS_IN));
 let investments=JSON.parse(localStorage.getItem('fam_inv')||'[]');
 let debts=JSON.parse(localStorage.getItem('fam_debts')||'[]');
 let assets=JSON.parse(localStorage.getItem('fam_assets')||'[]');
 let saldoAwal=parseInt(localStorage.getItem('fam_saldo_awal')||'0');
 let budgetSnapshot=JSON.parse(localStorage.getItem('fam_budget_snapshot')||'null');
-// Budget per periode: key = "YYYY-MM" (tahun-bulan periode mulai)
 let budgetPerPeriod=JSON.parse(localStorage.getItem('fam_budget_periods')||'{}');
 let MEMBERS=JSON.parse(localStorage.getItem('fam_members')||'["Ayah","Ibu","Anak"]');
 let txType='pengeluaran', periodOffset=0, budgetPeriodOffset=0, selectedEmoji='📌';
@@ -983,6 +1010,7 @@ let catChart, flowChart;
 const sv=()=>localStorage.setItem('fam_txs',JSON.stringify(txs));
 const svB=()=>localStorage.setItem('fam_budgets',JSON.stringify(budgets));
 const svC=()=>localStorage.setItem('fam_cats',JSON.stringify(CATS_OUT));
+const svCI=()=>localStorage.setItem('fam_cats_in',JSON.stringify(CATS_IN));
 const svI=()=>localStorage.setItem('fam_inv',JSON.stringify(investments));
 const svD=()=>localStorage.setItem('fam_debts',JSON.stringify(debts));
 const svA=()=>localStorage.setItem('fam_assets',JSON.stringify(assets));
@@ -1195,16 +1223,22 @@ function updateBudgetSnapshot(){
 function renderAktual(){
   const el=document.getElementById('budget-progress');
   const info=document.getElementById('aktual-snapshot-info');
-  if(!budgetSnapshot){
+
+  // Load snapshot untuk periodOffset yang aktif (bukan global budgetSnapshot)
+  const key=getBudgetPeriodKey(periodOffset);
+  const periodSnap=budgetPerPeriod[key]?._snapshot || (budgetSnapshot?.periodKey===key ? budgetSnapshot : null);
+
+  if(!periodSnap){
     info.style.display='block';
-    el.innerHTML='<div class="empty">Belum ada snapshot budget</div>';
+    info.textContent='Belum ada budget untuk periode '+periodLabel(periodOffset)+'. Atur di tab Budgeting lalu simpan.';
+    el.innerHTML='';
     return;
   }
-  const savedDate=new Date(budgetSnapshot.savedAt).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+  const savedDate=new Date(periodSnap.savedAt).toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
   info.style.display='block';
-  info.textContent='Budget periode: '+budgetSnapshot.period+' · disimpan '+savedDate;
+  info.textContent='Budget: '+periodSnap.period+' · disimpan '+savedDate;
   const expenses=getFiltered(periodOffset).filter(t=>t.type==='pengeluaran');
-  const snap=budgetSnapshot;
+  const snap=periodSnap;
   const has=snap.cats.filter(c=>snap.budgets[c.name]>0);
   if(!has.length){el.innerHTML='<div class="empty">Tidak ada budget di snapshot</div>';return;}
 
@@ -1304,7 +1338,9 @@ function val(id){return document.getElementById(id).value;}
 function getPeriod(o){
   const now=new Date();let sm=now.getMonth(),sy=now.getFullYear();
   if(now.getDate()<25)sm--;sm+=o;sy+=Math.floor(sm/12);sm=((sm%12)+12)%12;
-  return{start:new Date(sy,sm,25),end:new Date(sy,sm+1,24)};
+  const start=new Date(sy,sm,25);
+  const end=new Date(sy,sm+1,24,23,59,59,999); // include full day of 24th
+  return{start,end};
 }
 function periodLabel(o){
   const{start,end}=getPeriod(o);
@@ -1423,8 +1459,44 @@ function setType(t){
   txType=t;
   document.getElementById('btn-out').className='type-btn'+(t==='pengeluaran'?' active-out':'');
   document.getElementById('btn-in').className='type-btn'+(t==='pemasukan'?' active-in':'');
-  const cats=t==='pengeluaran'?CATS_OUT:CATS_IN;
+
+  let cats;
+  if(t==='pengeluaran'){
+    // Gunakan kategori dari periode aktif (budgetPerPeriod), fallback ke CATS_OUT global
+    const key=getBudgetPeriodKey(periodOffset);
+    const pb=budgetPerPeriod[key];
+    if(pb&&(pb.monthly?.length||pb.additional?.length)){
+      const allPeriodCats=[...(pb.monthly||[]),...(pb.additional||[])];
+      // Gabung dengan CATS_OUT global (untuk kategori yang tidak di budget)
+      const periodNames=new Set(allPeriodCats.map(c=>c.name));
+      const extra=CATS_OUT.filter(c=>!periodNames.has(c.name));
+      cats=[...allPeriodCats,...extra];
+    } else {
+      cats=CATS_OUT;
+    }
+  } else {
+    cats=CATS_IN;
+    // Tampilkan opsi import sisa budget jika hari ini sekitar tanggal 25
+    const today=new Date().getDate();
+    const importBtn=document.getElementById('import-sisa-btn');
+    if(importBtn) importBtn.style.display=(today>=24&&today<=26)?'block':'none';
+  }
+  const editBtn=document.getElementById('edit-cat-in-btn');
+  const importBtn=document.getElementById('import-sisa-btn');
+  if(editBtn) editBtn.style.display=t==='pemasukan'?'inline':'none';
+  if(t==='pemasukan'&&importBtn){
+    const today=new Date().getDate();
+    importBtn.style.display=(today>=24&&today<=26)?'block':'none';
+  } else if(importBtn){
+    importBtn.style.display='none';
+  }
+  // Hide edit panel when switching to pengeluaran
+  if(t==='pengeluaran'){
+    const panel=document.getElementById('edit-cats-in-panel');
+    if(panel) panel.style.display='none';
+  }
   document.getElementById('f-cat').innerHTML=cats.map(c=>`<option value="${c.name}">${c.icon} ${c.name}</option>`).join('');
+  onCatChange();
 }
 
 function onCatChange(){
@@ -1591,6 +1663,59 @@ function txItemHTML(t,icons){
   </div>`;
 }
 
+// ── IMPORT SISA BUDGET ──
+function importSisaBudget(){
+  const prevKey=getBudgetPeriodKey(periodOffset-1);
+  const prevSnap=budgetPerPeriod[prevKey]?._snapshot;
+  if(!prevSnap){alert('Tidak ada budget tersimpan di periode sebelumnya.');return;}
+  const expenses=txs.filter(t=>inPeriod(t.date,periodOffset-1)&&t.type==='pengeluaran');
+  const grandBudget=Object.values(prevSnap.budgets).reduce((s,v)=>s+v,0);
+  const grandSpent=expenses.reduce((s,t)=>s+t.amount,0);
+  const sisa=grandBudget-grandSpent;
+  if(sisa<=0){alert('Tidak ada sisa budget dari periode sebelumnya.');return;}
+  if(!confirm('Import sisa budget '+fmt(sisa)+' dari periode '+prevSnap.period+' sebagai pemasukan?')) return;
+  document.getElementById('f-amount').value=sisa.toLocaleString('id-ID');
+  document.getElementById('f-note').value='Sisa budget '+prevSnap.period;
+  document.getElementById('import-sisa-btn').style.display='none';
+}
+
+// ── KATEGORI PEMASUKAN ──
+function toggleEditCatsIn(){
+  const panel=document.getElementById('edit-cats-in-panel');
+  const isOpen=panel.style.display==='block';
+  panel.style.display=isOpen?'none':'block';
+  if(!isOpen){
+    renderCatsInList();
+    const ep=document.getElementById('emoji-picker-in');
+    if(ep&&!ep.innerHTML) ep.innerHTML=EMOJI_LIST.map(e=>`<button class="emoji-opt" onclick="pickEmojiFor('in','${e}')">${e}</button>`).join('');
+  }
+}
+function renderCatsInList(){
+  const el=document.getElementById('cats-in-list');
+  if(!el)return;
+  el.innerHTML=CATS_IN.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:15px">${c.icon}</span>
+      <span style="flex:1;font-size:13px">${c.name}</span>
+      ${CATS_IN.length>1?`<button onclick="delCatIn(${i})" style="background:none;border:none;color:var(--text3);font-size:17px;cursor:pointer">×</button>`:''}
+    </div>`).join('');
+}
+function addCatIn(){
+  const name=document.getElementById('new-cat-in-name').value.trim();
+  if(!name){alert('Masukkan nama');return;}
+  if(CATS_IN.find(c=>c.name.toLowerCase()===name.toLowerCase())){alert('Sudah ada');return;}
+  const icon=selectedEmojiByType['in']||'💰';
+  CATS_IN.push({name,icon});svCI();
+  document.getElementById('new-cat-in-name').value='';
+  selectedEmojiByType['in']='💰';
+  document.getElementById('emoji-btn-in').textContent='➕';
+  renderCatsInList();setType('pemasukan');
+}
+function delCatIn(i){
+  if(!confirm(`Hapus kategori "${CATS_IN[i].name}"?`))return;
+  CATS_IN.splice(i,1);svCI();renderCatsInList();setType('pemasukan');
+}
+
 function sizeTrophy(){
   const header=document.getElementById('main-header');
   const trophy=document.getElementById('trophy-container');
@@ -1700,7 +1825,7 @@ function updateBudgetTotalBar(){
 }
 
 let addingCatType='monthly';
-const selectedEmojiByType={monthly:'📌',additional:'📌'};
+const selectedEmojiByType={monthly:'📌',additional:'📌',in:'💰'};
 
 function addBudgetCat(type){
   addingCatType=type;
